@@ -1,0 +1,6 @@
+# Subject PDFs
+*.subject.pdf
+
+# Build artifacts
+philo/philo
+philo/obj/
