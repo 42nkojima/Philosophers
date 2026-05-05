@@ -35,11 +35,19 @@ second = max(left_fork, right_fork);
 2. `has taken a fork` を出力する
 3. `second` の fork mutex を lock する
 4. `has taken a fork` を出力する
-5. `last_meal_time` を更新する
+5. meal/state mutex を取得し、`last_meal_time` を更新し、解放する
 6. `is eating` を出力する
 7. `time_to_eat` だけ待つ
-8. `eat_count` を更新する
+8. meal/state mutex を取得し、`eat_count` を更新し、解放する
 9. `second`、`first` の順に unlock する
+10. `is sleeping` を出力する
+11. `time_to_sleep` だけ待つ
+12. `is thinking` を出力する
+13. ループ先頭に戻る
+
+philosopher のルーティンは eat → sleep → think の繰り返しである。
+subject が要求する状態ログは `has taken a fork`、`is eating`、`is sleeping`、`is thinking`、`died` の5種類。
+すべての状態遷移でログを出力する。
 
 この方式では、すべての thread が同じ順序規則に従って mutex を取得する。
 待ち関係が小さい id から大きい id にしか進まないため、循環待ちを作れない。
@@ -83,7 +91,14 @@ fork mutex → meal/state mutex → print mutex
 逆順での取得や、右側を保持した状態で左側を取得することは禁止する。
 この順序をすべてのコードパスで守ることで、異種 mutex 間のデッドロックを防ぐ。
 
-print 関数は meal/state mutex を取得して終了フラグを確認し、終了済みなら通常ログを出さずに return する。
+print 関数は次の順序で動作する。
+
+1. meal/state mutex を取得して終了フラグを確認する
+2. 終了済みなら meal/state mutex を解放して return する（通常ログを出さない）
+3. 終了していなければ print mutex を取得する（meal/state → print の順序でグローバルロック順序に適合）
+4. メッセージを出力する
+5. print mutex を解放し、meal/state mutex を解放する
+
 死亡ログだけは終了フラグに関係なく一度だけ出す。
 この方式により、print mutex 単体で終了フラグを読むことによる data race を回避する。
 
@@ -187,6 +202,16 @@ print mutex との組み合わせで、ログの混在と消失の両方を防�
 `printf` は引数エラー時の usage 表示のみに限定する（シングルスレッド、正常系前なので問題なし）。
 
 ## 実装時に注意すること
+
+philosopher の番号は 1 から `number_of_philosophers` までの 1-indexed で表示する。
+内部配列は 0-indexed で管理し、ログ出力時に `id + 1` で変換する。
+
+時刻取得には `gettimeofday` を使う（subject の許可関数にこれしかない）。
+simulation 開始時のタイムスタンプとの差分をミリ秒で算出し、ログの timestamp とする。
+
+philosopher thread は `pthread_create` で生成し、simulation 終了後に `pthread_join` で全スレッドを回収する。
+monitor thread も同様に `pthread_join` で回収する。`pthread_detach` は使わない。
+join で回収することでリソースリークを防ぎ、全スレッドの終了を main で確認してから exit する。
 
 `usleep` は指定時間ぴったりに復帰する保証がない。
 死亡ログは実際の死亡から 10 ms 以内に出す必要があるため、長い `usleep` をそのまま使わず、短い間隔で終了状態や現在時刻を確認する `precise_sleep` を用意する。
