@@ -26,12 +26,8 @@ static int	parse_pos_int(const char *s, int *out)
 
 	if (!s || !*s)
 		return (-1);
-	i = 0;
-	if (s[i] == '+')
-		i++;
-	if (!s[i])
-		return (-1);
 	n = 0;
+	i = 0;
 	while (s[i])
 	{
 		if (!is_digit(s[i]))

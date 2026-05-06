@@ -42,8 +42,7 @@ int	main(void)
 			(t_config){5, 800, 200, 200, -1});
 	fail += expect_ok((char *[]){"./philo", "5", "800", "200", "200", "7"}, 6,
 			(t_config){5, 800, 200, 200, 7});
-	fail += expect_ok((char *[]){"./philo", "+5", "+800", "+200", "+200"}, 5,
-			(t_config){5, 800, 200, 200, -1});
+	fail += expect_ng((char *[]){"./philo", "+5", "800", "200", "200"}, 5);
 	fail += expect_ng((char *[]){"./philo"}, 1);
 	fail += expect_ng((char *[]){"./philo", "5", "800", "200"}, 4);
 	fail += expect_ng((char *[]){"./philo", "5", "800", "200", "200", "7", "x"},
