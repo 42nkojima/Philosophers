@@ -88,3 +88,6 @@ if (!ptr)
     return (NULL);
 // normal path continues here
 ```
+
+システムコール（`gettimeofday`, `write`, `usleep` 等）は有効な引数を渡す限り失敗しない。
+戻り値の防御チェックは不要。

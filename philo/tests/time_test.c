@@ -1,7 +1,7 @@
 /*
- * now_ms / precise_sleep_ms の簡易テスト。
+ * time_now_ms / time_sleep_ms の簡易テスト。
  * wall_us() は gettimeofday を µs に正規化し、閾値判定に使う
- * （now_ms は 1ms 粒度なので、数 ms 未満の短時間計測には不向き）。
+ * （time_now_ms は 1ms 粒度なので、数 ms 未満の短時間計測には不向き）。
  */
 
 #include "philo.h"
@@ -22,16 +22,16 @@ static uint64_t	wall_us(void)
 }
 
 /* 少し寝て時刻が戻らないことだけ確認（同一 ms 内でも OK）。 */
-static int	test_now_ms_monotonic(void)
+static int	test_time_now_ms_monotonic(void)
 {
 	uint64_t	a;
 	uint64_t	b;
 
-	a = now_ms();
+	a = time_now_ms();
 	usleep(2000);
-	b = now_ms();
+	b = time_now_ms();
 	if (b < a)
-		return (printf("FAIL: now_ms not monotonic\n"), 1);
+		return (printf("FAIL: time_now_ms not monotonic\n"), 1);
 	return (0);
 }
 
@@ -49,16 +49,16 @@ static int	test_precise_sleep_zero_and_stop(void)
 
 	stop_false = false;
 	t0 = wall_us();
-	precise_sleep_ms(0, &stop_false);
+	time_sleep_ms(0, &stop_false);
 	dt = wall_us() - t0;
 	if (dt > 3000)
-		return (printf("FAIL: precise_sleep_ms(0) took too long\n"), 1);
+		return (printf("FAIL: time_sleep_ms(0) took too long\n"), 1);
 	stop_true = true;
 	t0 = wall_us();
-	precise_sleep_ms(10000, &stop_true);
+	time_sleep_ms(10000, &stop_true);
 	dt = wall_us() - t0;
 	if (dt > 3000)
-		return (printf("FAIL: precise_sleep_ms(..., stop=true) blocked\n"), 1);
+		return (printf("FAIL: time_sleep_ms(..., stop=true) blocked\n"), 1);
 	return (0);
 }
 
@@ -74,13 +74,13 @@ static int	test_precise_sleep_duration(void)
 
 	stop_false = false;
 	t0 = wall_us();
-	precise_sleep_ms(50, &stop_false);
+	time_sleep_ms(50, &stop_false);
 	dt = wall_us() - t0;
 	if (dt < 40000)
-		return (printf("FAIL: precise_sleep_ms(50) too short (%llu us)\n",
+		return (printf("FAIL: time_sleep_ms(50) too short (%llu us)\n",
 				(unsigned long long)dt), 1);
 	if (dt > 250000)
-		return (printf("FAIL: precise_sleep_ms(50) too long (%llu us)\n",
+		return (printf("FAIL: time_sleep_ms(50) too long (%llu us)\n",
 				(unsigned long long)dt), 1);
 	return (0);
 }
@@ -90,7 +90,7 @@ int	main(void)
 	int	fail;
 
 	fail = 0;
-	fail += test_now_ms_monotonic();
+	fail += test_time_now_ms_monotonic();
 	fail += test_precise_sleep_zero_and_stop();
 	fail += test_precise_sleep_duration();
 	if (fail == 0)
