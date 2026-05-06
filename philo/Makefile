@@ -59,9 +59,13 @@ test: $(TEST_BINS)
 	done
 	@echo "$(GREEN)All tests passed.$(RESET)"
 
+TEST_DEPS = $(TEST_BINS:=.d)
+
 $(OBJ_DIR)/tests/%: tests/%.c $(TEST_SUPPORT_SRCS)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -I. $< $(TEST_SUPPORT_SRCS) $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) -MMD -MP -I. $< $(TEST_SUPPORT_SRCS) $(LDLIBS) -o $@
+
+-include $(TEST_DEPS)
 
 # ===============================
 #          RUN / CLEAN
