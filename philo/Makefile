@@ -6,7 +6,7 @@
 #    By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/05/04 23:15:36 by nkojima           #+#    #+#              #
-#    Updated: 2026/05/04 23:22:01 by nkojima          ###   ########.fr        #
+#    Updated: 2026/05/06 15:58:40 by nkojima          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -43,6 +43,8 @@ TEST_SUPPORT_SRCS = $(filter-out main.c,$(SRCS))
 # ===============================
 all: $(NAME)
 
+# Norm: only *.c / *.h in this directory (wildcard does not recurse).
+# tests/ is never passed to norminette.
 norm:
 	norminette $(SRCS) $(HEADERS)
 
