@@ -55,6 +55,9 @@ int	main(void)
 	fail += expect_ng((char *[]){"./philo", "5x", "800", "200", "200"}, 5);
 	fail += expect_ng((char *[]){"./philo", "2147483648", "800", "200", "200"},
 			5);
+	fail += expect_ok((char *[]){"./philo", "2147483647", "800", "200", "200"},
+			5, (t_config){2147483647, 800, 200, 200, -1});
+	fail += expect_ng((char *[]){"./philo", "5", "800", "200", "200", "0"}, 6);
 	if (fail == 0)
 		printf("OK\n");
 	return (fail != 0);
