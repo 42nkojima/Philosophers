@@ -30,6 +30,7 @@ OBJ_DIR = obj
 #               SRC
 # ===============================
 SRCS    = $(wildcard *.c)
+HEADERS = $(wildcard *.h)
 OBJS    = $(addprefix $(OBJ_DIR)/, $(SRCS:.c=.o))
 DEPS    = $(OBJS:.o=.d)
 
@@ -41,6 +42,11 @@ TEST_SUPPORT_SRCS = $(filter-out main.c,$(SRCS))
 #             TARGETS
 # ===============================
 all: $(NAME)
+
+norm:
+	norminette $(SRCS) $(HEADERS)
+
+ci: norm all test
 
 $(NAME): $(OBJS)
 	@echo "$(YELLOW)[LD] Linking $(NAME)...$(RESET)"
@@ -85,4 +91,4 @@ re: fclean all
 # ===============================
 #             PHONY
 # ===============================
-.PHONY: all clean fclean re test
+.PHONY: all clean fclean re norm ci test
