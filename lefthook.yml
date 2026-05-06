@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    norminette:
+      run: make -C philo norm
