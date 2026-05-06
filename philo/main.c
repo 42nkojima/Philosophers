@@ -17,6 +17,6 @@ int	main(int ac, char **av)
 	t_config	cfg;
 
 	if (parse_config(ac, av, &cfg) == -1)
-		return (-1);
+		return (1);
 	return (0);
 }
