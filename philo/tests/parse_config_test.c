@@ -11,16 +11,20 @@ static int	expect_ok(char **av, int ac, t_config expected)
 		|| cfg.time_to_die != expected.time_to_die
 		|| cfg.time_to_eat != expected.time_to_eat
 		|| cfg.time_to_sleep != expected.time_to_sleep
-		|| cfg.number_of_times_each_philosopher_must_eat
-		!= expected.number_of_times_each_philosopher_must_eat)
+		|| cfg.number_of_times_each_philosopher_must_eat != expected.number_of_times_each_philosopher_must_eat)
 		return (printf("FAIL: values differ: got {%d,%d,%d,%d,%d}"
-				" expected {%d,%d,%d,%d,%d}\n",
-				cfg.number_of_philosophers, cfg.time_to_die,
-				cfg.time_to_eat, cfg.time_to_sleep,
-				cfg.number_of_times_each_philosopher_must_eat,
-				expected.number_of_philosophers, expected.time_to_die,
-				expected.time_to_eat, expected.time_to_sleep,
-				expected.number_of_times_each_philosopher_must_eat), 1);
+						" expected {%d,%d,%d,%d,%d}\n",
+						cfg.number_of_philosophers,
+						cfg.time_to_die,
+						cfg.time_to_eat,
+						cfg.time_to_sleep,
+						cfg.number_of_times_each_philosopher_must_eat,
+						expected.number_of_philosophers,
+						expected.time_to_die,
+						expected.time_to_eat,
+						expected.time_to_sleep,
+						expected.number_of_times_each_philosopher_must_eat),
+				1);
 	return (0);
 }
 
