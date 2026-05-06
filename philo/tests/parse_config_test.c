@@ -6,13 +6,21 @@ static int	expect_ok(char **av, int ac, t_config expected)
 	t_config	cfg;
 
 	if (parse_config(ac, av, &cfg) != 0)
-		return (printf("FAIL: expected ok\n"), 1);
+		return (printf("FAIL: expected ok for av[1]=%s\n", av[1]), 1);
 	if (cfg.number_of_philosophers != expected.number_of_philosophers
 		|| cfg.time_to_die != expected.time_to_die
 		|| cfg.time_to_eat != expected.time_to_eat
 		|| cfg.time_to_sleep != expected.time_to_sleep
-		|| cfg.number_of_times_each_philosopher_must_eat != expected.number_of_times_each_philosopher_must_eat)
-		return (printf("FAIL: parsed values differ\n"), 1);
+		|| cfg.number_of_times_each_philosopher_must_eat
+		!= expected.number_of_times_each_philosopher_must_eat)
+		return (printf("FAIL: values differ: got {%d,%d,%d,%d,%d}"
+				" expected {%d,%d,%d,%d,%d}\n",
+				cfg.number_of_philosophers, cfg.time_to_die,
+				cfg.time_to_eat, cfg.time_to_sleep,
+				cfg.number_of_times_each_philosopher_must_eat,
+				expected.number_of_philosophers, expected.time_to_die,
+				expected.time_to_eat, expected.time_to_sleep,
+				expected.number_of_times_each_philosopher_must_eat), 1);
 	return (0);
 }
 
