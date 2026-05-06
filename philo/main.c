@@ -1,13 +1,22 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/05/06 05:48:09 by nkojima           #+#    #+#             */
+/*   Updated: 2026/05/06 08:37:11 by nkojima          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "philo.h"
 
-int	main(void)
+int	main(int ac, char **av)
 {
-	t_config	config;
+	t_config	cfg;
 
-	config.number_of_philosophers = 0;
-	config.time_to_die = 0;
-	config.time_to_eat = 0;
-	config.time_to_sleep = 0;
-	config.number_of_times_each_philosopher_must_eat = 0;
-	return (config.number_of_philosophers);
+	if (parse_config(ac, av, &cfg) == -1)
+		return (1);
+	return (0);
 }

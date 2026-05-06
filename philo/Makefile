@@ -33,6 +33,10 @@ SRCS    = $(wildcard *.c)
 OBJS    = $(addprefix $(OBJ_DIR)/, $(SRCS:.c=.o))
 DEPS    = $(OBJS:.o=.d)
 
+TEST_SRCS         = $(wildcard tests/*_test.c)
+TEST_BINS         = $(patsubst tests/%.c,$(OBJ_DIR)/tests/%,$(TEST_SRCS))
+TEST_SUPPORT_SRCS = $(filter-out main.c,$(SRCS))
+
 # ===============================
 #             TARGETS
 # ===============================
@@ -47,6 +51,21 @@ $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 	@echo "$(GREEN)Compiled: $<$(RESET)"
+
+test: $(TEST_BINS)
+	@for test in $(TEST_BINS); do \
+		echo "$(YELLOW)[TEST] $$test$(RESET)"; \
+		$$test || exit 1; \
+	done
+	@echo "$(GREEN)All tests passed.$(RESET)"
+
+TEST_DEPS = $(TEST_BINS:=.d)
+
+$(OBJ_DIR)/tests/%: tests/%.c $(TEST_SUPPORT_SRCS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -MMD -MP -I. $< $(TEST_SUPPORT_SRCS) $(LDLIBS) -o $@
+
+-include $(TEST_DEPS)
 
 # ===============================
 #          RUN / CLEAN
@@ -66,4 +85,4 @@ re: fclean all
 # ===============================
 #             PHONY
 # ===============================
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re test
