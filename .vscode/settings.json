@@ -2,5 +2,9 @@
   "[c]": {
     "editor.defaultFormatter": "keyhr.42-c-format",
     "editor.formatOnSave": true
+  },
+  "[cpp]": {
+    "editor.defaultFormatter": "keyhr.42-c-format",
+    "editor.formatOnSave": true
   }
 }
