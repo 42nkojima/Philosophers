@@ -39,9 +39,18 @@ static int	capture_begin(t_capture *cap)
 		return (-1);
 	cap->saved_stdout = dup(STDOUT_FILENO);
 	if (cap->saved_stdout == -1)
+	{
+		close(cap->pipe_fd[0]);
+		close(cap->pipe_fd[1]);
 		return (-1);
+	}
 	if (dup2(cap->pipe_fd[1], STDOUT_FILENO) == -1)
+	{
+		close(cap->saved_stdout);
+		close(cap->pipe_fd[0]);
+		close(cap->pipe_fd[1]);
 		return (-1);
+	}
 	close(cap->pipe_fd[1]);
 	return (0);
 }
