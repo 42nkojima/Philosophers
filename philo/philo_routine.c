@@ -13,7 +13,6 @@
 #include "philo.h"
 #include <limits.h>
 
-/* time_sleep_ms: finished で抜ける。deadline は UINT_MAX で実質無効化 (n==1) */
 #define WAIT_UNTIL_FINISHED_MS UINT_MAX
 
 static void	routine_one_philo(t_philo *philo)
@@ -41,11 +40,24 @@ static void	rest_phase(t_philo *philo)
 	print_status(table, id, "is thinking");
 }
 
+static void	stagger_start(t_philo *philo)
+{
+	unsigned int	delay;
+
+	if (philo->id % 2 == 0)
+		return ;
+	delay = (unsigned int)philo->table->cfg.time_to_eat / 2;
+	if (delay == 0)
+		delay = 1;
+	time_sleep_ms(philo->table, delay);
+}
+
 static void	routine_multi(t_philo *philo)
 {
 	t_table	*table;
 
 	table = philo->table;
+	stagger_start(philo);
 	while (!table_is_finished(table))
 	{
 		if (!philo_meal_cycle(philo))
