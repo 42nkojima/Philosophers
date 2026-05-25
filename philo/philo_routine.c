@@ -43,9 +43,14 @@ static void	rest_phase(t_philo *philo)
 
 static void	stagger_start(t_philo *philo)
 {
-	if (philo->id % 2 == 1)
-		time_sleep_ms(philo->table,
-			(unsigned int)philo->table->cfg.time_to_eat);
+	unsigned int	delay;
+
+	if (philo->id % 2 == 0)
+		return ;
+	delay = (unsigned int)philo->table->cfg.time_to_eat / 2;
+	if (delay == 0)
+		delay = 1;
+	time_sleep_ms(philo->table, delay);
 }
 
 static void	routine_multi(t_philo *philo)
