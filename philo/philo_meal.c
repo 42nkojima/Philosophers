@@ -11,9 +11,6 @@
 /* ************************************************************************** */
 
 #include "philo.h"
-#include <unistd.h>
-
-#define FORK_WAIT_US 500
 
 static void	fork_indices(t_philo *philo, int *first, int *second)
 {
@@ -29,23 +26,6 @@ static void	fork_indices(t_philo *philo, int *first, int *second)
 	}
 }
 
-static bool	lock_fork_or_wait(t_philo *philo, int fork_index)
-{
-	t_table	*table;
-
-	table = philo->table;
-	while (!table_is_finished(table))
-	{
-		if (pthread_mutex_trylock(&table->forks[fork_index]) == 0)
-			return (true);
-		pthread_mutex_lock(&philo->table->state_mutex);
-		philo->last_meal_ms = time_now_ms();
-		pthread_mutex_unlock(&philo->table->state_mutex);
-		usleep(FORK_WAIT_US);
-	}
-	return (false);
-}
-
 static bool	acquire_forks(t_philo *philo, int first, int second)
 {
 	t_table	*table;
@@ -53,19 +33,14 @@ static bool	acquire_forks(t_philo *philo, int first, int second)
 
 	table = philo->table;
 	id = philo->id + 1;
-	if (!lock_fork_or_wait(philo, first))
-		return (false);
+	pthread_mutex_lock(&table->forks[first]);
 	print_status(table, id, "has taken a fork");
 	if (table_is_finished(table))
 	{
 		pthread_mutex_unlock(&table->forks[first]);
 		return (false);
 	}
-	if (!lock_fork_or_wait(philo, second))
-	{
-		pthread_mutex_unlock(&table->forks[first]);
-		return (false);
-	}
+	pthread_mutex_lock(&table->forks[second]);
 	print_status(table, id, "has taken a fork");
 	pthread_mutex_lock(&philo->table->state_mutex);
 	philo->last_meal_ms = time_now_ms();
