@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 17:00:00 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/25 18:37:16 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/26 03:35:00 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,13 +56,6 @@ static int	table_philos_create(t_table *table, int count)
 		table->philos[i].right_fork_index = (i + 1) % count;
 		i++;
 	}
-	return (0);
-}
-
-static void	table_meals_init(t_table *table, int count)
-{
-	int	i;
-
 	table->start_time_ms = time_now_ms();
 	i = 0;
 	while (i < count)
@@ -70,6 +63,17 @@ static void	table_meals_init(t_table *table, int count)
 		table->philos[i].last_meal_ms = table->start_time_ms;
 		i++;
 	}
+	return (0);
+}
+
+bool	table_is_finished(t_table *table)
+{
+	bool	finished;
+
+	pthread_mutex_lock(&table->state_mutex);
+	finished = table->finished;
+	pthread_mutex_unlock(&table->state_mutex);
+	return (finished);
 }
 
 int	table_init(t_table *table, const t_config *cfg)
@@ -90,13 +94,12 @@ int	table_init(t_table *table, const t_config *cfg)
 		return (-1);
 	}
 	count = cfg->number_of_philosophers;
-	if (table_philos_create(table, count) == -1 || table_forks_create(table,
-			count) == -1)
+	if (table_philos_create(table, count) == -1
+		|| table_forks_create(table, count) == -1)
 	{
 		table_destroy(table);
 		return (-1);
 	}
-	table_meals_init(table, count);
 	return (0);
 }
 

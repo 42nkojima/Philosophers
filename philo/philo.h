@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/06 05:48:15 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/25 16:30:00 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/26 03:06:19 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,6 +47,7 @@ typedef struct s_philo
 	int					eat_count;
 	int					left_fork_index;
 	int					right_fork_index;
+	pthread_t			thread;
 	t_table				*table;
 }						t_philo;
 
@@ -56,11 +57,11 @@ int						parse_config(int ac, char **av, t_config *cfg);
 /* table.c */
 int						table_init(t_table *table, const t_config *cfg);
 void					table_destroy(t_table *table);
+bool					table_is_finished(t_table *table);
 
 /* time.c */
 uint64_t				time_now_ms(void);
-void					time_sleep_ms(t_table *table,
-							unsigned int duration_ms);
+void					time_sleep_ms(t_table *table, unsigned int duration_ms);
 
 /* print_format.c */
 void					print_write_line(t_table *table, int philo_id,
@@ -71,6 +72,9 @@ void					print_status(t_table *table, int philo_id,
 							const char *msg);
 void					print_death_locked(t_table *table, int philo_id);
 void					print_death(t_table *table, int philo_id);
+
+/* philo_meal.c */
+bool					philo_meal_cycle(t_philo *philo);
 
 /* philo_routine.c */
 void					*philo_routine(void *arg);
