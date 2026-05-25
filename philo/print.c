@@ -57,18 +57,23 @@ void	print_status(t_table *table, int philo_id, const char *msg)
  * death_printed が true なら、すでに死亡ログを出しているので何もしない。
  * まだ出していなければ、finished と death_printed を true にしてから出力する。
  */
-void	print_death(t_table *table, int philo_id)
+/**
+ * 死亡ログを出力する（state_mutex 保持中に呼ぶ）。
+ */
+void	print_death_locked(t_table *table, int philo_id)
 {
-	pthread_mutex_lock(&table->state_mutex);
 	if (table->death_printed)
-	{
-		pthread_mutex_unlock(&table->state_mutex);
 		return ;
-	}
 	table->finished = true;
 	table->death_printed = true;
 	pthread_mutex_lock(&table->print_mutex);
 	print_write_line(table, philo_id, "died");
 	pthread_mutex_unlock(&table->print_mutex);
+}
+
+void	print_death(t_table *table, int philo_id)
+{
+	pthread_mutex_lock(&table->state_mutex);
+	print_death_locked(table, philo_id);
 	pthread_mutex_unlock(&table->state_mutex);
 }

@@ -69,6 +69,7 @@ void					print_write_line(t_table *table, int philo_id,
 /* print.c */
 void					print_status(t_table *table, int philo_id,
 							const char *msg);
+void					print_death_locked(t_table *table, int philo_id);
 void					print_death(t_table *table, int philo_id);
 
 /* philo_routine.c */
