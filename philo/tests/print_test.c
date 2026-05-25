@@ -1,9 +1,3 @@
-/*
- * print_status / print_death の外から見える振る舞いを確認する。
- * stdout は pipe + dup2 で一時的に差し替え、write(1, ...) の出力を読む。
- * timestamp は現在時刻依存なので完全一致させず、状態メッセージ部分を見る。
- */
-
 #include "philo.h"
 #include <stdio.h>
 #include <string.h>

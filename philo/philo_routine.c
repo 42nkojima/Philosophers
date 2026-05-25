@@ -13,7 +13,6 @@
 #include "philo.h"
 #include <limits.h>
 
-/* time_sleep_ms: finished で抜ける。deadline は UINT_MAX で実質無効化 (n==1) */
 #define WAIT_UNTIL_FINISHED_MS UINT_MAX
 
 static void	routine_one_philo(t_philo *philo)

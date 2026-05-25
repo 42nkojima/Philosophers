@@ -1,8 +1,3 @@
-/*
- * table_init / table_destroy のテスト。
- * fork index の円環境界（design.md）と、初期フィールドを確認する。
- */
-
 #include "philo.h"
 #include <stdio.h>
 

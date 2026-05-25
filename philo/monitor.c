@@ -12,14 +12,6 @@
 
 #include "philo.h"
 
-/*
-monitor_routine:
-- table を引数に取る(void * -> t_table *)
-- finished になるまで巡回
-- 各 philo: state_mutex 下で餓死判定と print_death_locked を一括
-- ループ末尾: 短いusleep (負荷と 10ms 要件のバランス)
-*/
-
 static bool	try_report_death(t_table *table, t_philo *philo)
 {
 	uint64_t	elapsed;

@@ -1,18 +1,8 @@
-/*
- * time_now_ms / time_sleep_ms の簡易テスト。
- * wall_us() は gettimeofday を µs に正規化し、閾値判定に使う
- * （time_now_ms は 1ms 粒度なので、数 ms 未満の短時間計測には不向き）。
- */
-
 #include "philo.h"
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
 
-/*
- * tv_sec を µs に直して tv_usec と足す。
- * 1 秒 = 1_000_000 µs なので tv_sec に 1000000 を掛ける。
- */
 static uint64_t	wall_us(void)
 {
 	struct timeval	tv;
@@ -21,7 +11,6 @@ static uint64_t	wall_us(void)
 	return ((uint64_t)tv.tv_sec * 1000000ULL + (uint64_t)tv.tv_usec);
 }
 
-/* 少し寝て時刻が戻らないことだけ確認（同一 ms 内でも OK）。 */
 static int	test_time_now_ms_monotonic(void)
 {
 	uint64_t	a;
@@ -35,10 +24,6 @@ static int	test_time_now_ms_monotonic(void)
 	return (0);
 }
 
-/*
- * duration 0 は即 return。
- * finished が true なら長い duration でも先頭で return。
- */
 static int	test_precise_sleep_zero_and_stop(void)
 {
 	t_table		table;
@@ -69,10 +54,6 @@ static int	test_precise_sleep_zero_and_stop(void)
 	return (0);
 }
 
-/*
- * 50 ms 要求に対し、誤差・スケジューラ遅延を考えて
- * 下限 40 ms、上限 250 ms の幅で見る。
- */
 static int	test_precise_sleep_duration(void)
 {
 	t_table		table;

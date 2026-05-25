@@ -1,11 +1,3 @@
-/*
- * parse_config の入出力テスト。
- * - expect_ok: argv と期待する t_config（5 フィールド）が一致するか。
- * - expect_ng: parse が -1 を返すか。
- * (char *[]){ ... } は複合リテラル。テスト用に短命の argv をスタック上で組む。
- * 第 5 値が無い必須 4 引数形では must_eat は -1（optional 未指定）を期待。
- */
-
 #include "philo.h"
 #include <stdio.h>
 
