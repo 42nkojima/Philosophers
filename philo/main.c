@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/06 05:48:09 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/26 03:20:57 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/26 03:39:28 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,6 +39,13 @@ static void	join_philosophers(t_table *table, int count)
 	}
 }
 
+static void	stop_simulation(t_table *table)
+{
+	pthread_mutex_lock(&table->state_mutex);
+	table->finished = true;
+	pthread_mutex_unlock(&table->state_mutex);
+}
+
 static int	run_simulation(t_table *table, pthread_t *mon)
 {
 	int	count;
@@ -50,6 +57,7 @@ static int	run_simulation(t_table *table, pthread_t *mon)
 	started = start_philosophers(table, count);
 	if (started != count)
 	{
+		stop_simulation(table);
 		join_philosophers(table, started);
 		pthread_join(*mon, NULL);
 		return (-1);
