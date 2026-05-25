@@ -8,9 +8,10 @@ runs in its own thread, shares forks with neighbors, and must eat, sleep, and
 think without data races, deadlocks, or incorrect death detection.
 
 The goal is to practice shared-state protection with `pthread_mutex_t`, correct
-lock ordering, and a monitor thread that detects death within 10 ms and stops
-the simulation when a philosopher dies or when every philosopher has eaten the
-required number of meals (optional fifth argument).
+lock ordering (resource hierarchy on forks), and a monitor thread that detects
+death within 10 ms and stops the simulation when a philosopher dies or when
+every philosopher has eaten the required number of meals (optional fifth
+argument).
 
 ## Instructions
 
@@ -44,20 +45,24 @@ make -C philo norm
 
 ## Resources
 
-- [Dining philosophers problem (Wikipedia)](https://en.wikipedia.org/wiki/Dining_philosophers_problem)
-- [POSIX threads (man7)](https://man7.org/linux/man-pages/man7/pthreads.7.html)
-- [pthread_mutex_lock(3)](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html)
-- [gettimeofday(2)](https://man7.org/linux/man-pages/man2/gettimeofday.2.html)
+- [Philo project notes (Zenn)](https://zenn.dev/tokochiz/scraps/7d7a0323f85201) — threads, mutexes, deadlock, stagger, and common eval scenarios
+- [(outdated) What was philosopher? (Qiita)](https://qiita.com/42yliu/items/86d16cdbc584c250ca6e) — Coffman conditions, deadlock prevention vs avoidance, starvation (legacy subject)
+- [Dining philosophers problem (Wikipedia, JA)](https://ja.wikipedia.org/wiki/%E9%A3%9F%E4%BA%8B%E3%81%99%E3%82%8B%E5%93%B2%E5%AD%A6%E8%80%85%E3%81%AE%E5%95%8F%E9%A1%8C) — classic problem statement and solutions (hierarchy, waiter, Chandy/Misra)
+- [Slides: understanding Philosophers (Google)](https://docs.google.com/presentation/d/12-lAykLu-RVACE1gI2aP-uEYZoOaeeFVYGh8W4ttTNw/edit?slide=id.gd4524b1be8_0_253#slide=id.gd4524b1be8_0_253) — 42-oriented overview
+- [Tsukuba CS lecture (2020-05-08)](https://www.cs.tsukuba.ac.jp/~yas/cs/csys-2020/2020-05-08/index.html) — concurrent systems course notes
+- [Concurrent vs parallel processing (Qiita)](https://qiita.com/Kohei909Otsuka/items/26be74de803d195b37bd) — process vs thread, concurrent vs parallel terminology
+- [Dining philosophers deadlock in C (Qiita)](https://qiita.com/KenjiOtsuka/items/2355963f826ba2a9edd8) — deadlock demo and ordered fork acquisition
+- [Threads/processes vs concurrent/parallel (Zenn)](https://zenn.dev/chro96/articles/abcda94d41697b) — why these concepts should not be conflated
 - Project subject: `en.subject.pdf` in this repository
-- Design notes (Japanese): `docs/design.md`
+- Internal design notes: `docs/design.md` (Japanese)
 
-### AI usage
+### How AI was used
 
-AI tools (Cursor / Claude) were used to:
+AI tools (Cursor / Claude) were used for:
 
-- Draft and refine `docs/design.md` (mutex roles, lock order, test matrix)
-- Review concurrency and subject-compliance issues on feature branches
-- Suggest fixes for optional meal-count termination and fork-acquisition timing
+- Drafting and refining `docs/design.md` (mutex roles, global lock order, test matrix)
+- Multi-agent review of concurrency and subject compliance on feature branches
+- Suggesting fixes for optional meal-count termination, fork acquisition, and README wording
 
-All simulation logic, mutex layout, and final code were written and verified
-by the author (build, unit tests, and manual scenario runs).
+All simulation logic, mutex layout, and final code were written and verified by the
+author (build, unit tests, and manual scenario runs).
