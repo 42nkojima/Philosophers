@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/06 10:56:56 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/06 16:36:15 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/25 18:48:20 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,14 +24,24 @@ uint64_t	time_now_ms(void)
 	return ((uint64_t)tv.tv_sec * 1000ULL + (uint64_t)tv.tv_usec / 1000ULL);
 }
 
-void	time_sleep_ms(unsigned int duration_ms, volatile bool *stop)
+static bool	table_is_finished(t_table *table)
+{
+	bool	finished;
+
+	pthread_mutex_lock(&table->state_mutex);
+	finished = table->finished;
+	pthread_mutex_unlock(&table->state_mutex);
+	return (finished);
+}
+
+void	time_sleep_ms(t_table *table, unsigned int duration_ms)
 {
 	uint64_t	deadline;
 
-	if (duration_ms == 0 || *stop)
+	if (duration_ms == 0 || table_is_finished(table))
 		return ;
 	deadline = time_now_ms() + duration_ms;
-	while (*stop == false)
+	while (!table_is_finished(table))
 	{
 		if (time_now_ms() >= deadline)
 			return ;
