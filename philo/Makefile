@@ -6,7 +6,7 @@
 #    By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/05/04 23:15:36 by nkojima           #+#    #+#              #
-#    Updated: 2026/05/06 15:58:40 by nkojima          ###   ########.fr        #
+#    Updated: 2026/05/26 04:56:23 by nkojima          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -29,12 +29,23 @@ OBJ_DIR = obj
 # ===============================
 #               SRC
 # ===============================
-SRCS    = $(wildcard *.c)
-HEADERS = $(wildcard *.h)
+SRCS    = main.c \
+          monitor.c \
+          parse.c \
+          philo_meal.c \
+          philo_routine.c \
+          print.c \
+          print_format.c \
+          table.c \
+          time.c
+HEADERS = philo.h
 OBJS    = $(addprefix $(OBJ_DIR)/, $(SRCS:.c=.o))
 DEPS    = $(OBJS:.o=.d)
 
-TEST_SRCS         = $(wildcard tests/*_test.c)
+TEST_SRCS         = tests/parse_config_test.c \
+                    tests/print_test.c \
+                    tests/table_test.c \
+                    tests/time_test.c
 TEST_BINS         = $(patsubst tests/%.c,$(OBJ_DIR)/tests/%,$(TEST_SRCS))
 TEST_SUPPORT_SRCS = $(filter-out main.c,$(SRCS))
 
@@ -43,7 +54,7 @@ TEST_SUPPORT_SRCS = $(filter-out main.c,$(SRCS))
 # ===============================
 all: $(NAME)
 
-# Norm: only *.c / *.h in this directory (wildcard does not recurse).
+# Norm: only explicitly listed source and header files.
 # tests/ is never passed to norminette.
 norm:
 	norminette $(SRCS) $(HEADERS)
