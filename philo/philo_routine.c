@@ -41,11 +41,19 @@ static void	rest_phase(t_philo *philo)
 	print_status(table, id, "is thinking");
 }
 
+static void	stagger_start(t_philo *philo)
+{
+	if (philo->id % 2 == 1)
+		time_sleep_ms(philo->table,
+			(unsigned int)philo->table->cfg.time_to_eat);
+}
+
 static void	routine_multi(t_philo *philo)
 {
 	t_table	*table;
 
 	table = philo->table;
+	stagger_start(philo);
 	while (!table_is_finished(table))
 	{
 		if (!philo_meal_cycle(philo))

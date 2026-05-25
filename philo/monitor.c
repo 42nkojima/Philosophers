@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 21:43:33 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/26 03:21:03 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/26 04:10:49 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,35 @@ static bool	try_report_death(t_table *table, t_philo *philo)
 	return (true);
 }
 
+static bool	try_finish_all_fed(t_table *table)
+{
+	int	must;
+	int	i;
+
+	must = table->cfg.number_of_times_each_philosopher_must_eat;
+	if (must < 0)
+		return (false);
+	pthread_mutex_lock(&table->state_mutex);
+	if (table->finished)
+	{
+		pthread_mutex_unlock(&table->state_mutex);
+		return (false);
+	}
+	i = 0;
+	while (i < table->cfg.number_of_philosophers)
+	{
+		if (table->philos[i].eat_count < must)
+		{
+			pthread_mutex_unlock(&table->state_mutex);
+			return (false);
+		}
+		i++;
+	}
+	table->finished = true;
+	pthread_mutex_unlock(&table->state_mutex);
+	return (true);
+}
+
 void	*monitor_routine(void *arg)
 {
 	t_table	*table;
@@ -60,6 +89,8 @@ void	*monitor_routine(void *arg)
 				return (NULL);
 			i++;
 		}
+		if (try_finish_all_fed(table))
+			return (NULL);
 		time_sleep_ms(table, 1);
 	}
 	return (NULL);
