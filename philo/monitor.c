@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/25 21:43:33 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/26 02:48:57 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/26 03:21:03 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,16 +19,6 @@ monitor_routine:
 - 各 philo: state_mutex 下で餓死判定と print_death_locked を一括
 - ループ末尾: 短いusleep (負荷と 10ms 要件のバランス)
 */
-
-static bool	table_finished(t_table *table)
-{
-	bool	finished;
-
-	pthread_mutex_lock(&table->state_mutex);
-	finished = table->finished;
-	pthread_mutex_unlock(&table->state_mutex);
-	return (finished);
-}
 
 static bool	try_report_death(t_table *table, t_philo *philo)
 {
@@ -60,7 +50,7 @@ void	*monitor_routine(void *arg)
 	int		i;
 
 	table = arg;
-	while (!table_finished(table))
+	while (!table_is_finished(table))
 	{
 		i = 0;
 		count = table->cfg.number_of_philosophers;
