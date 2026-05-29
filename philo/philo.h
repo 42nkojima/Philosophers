@@ -38,6 +38,7 @@ typedef struct s_table
 	pthread_mutex_t		print_mutex;
 	t_philo				*philos;
 	pthread_mutex_t		*forks;
+	bool				*fork_reserved;
 }						t_table;
 
 typedef struct s_philo
@@ -47,6 +48,7 @@ typedef struct s_philo
 	int					eat_count;
 	int					left_fork_index;
 	int					right_fork_index;
+	bool				hungry;
 	pthread_t			thread;
 	t_table				*table;
 }						t_philo;
@@ -72,6 +74,13 @@ void					print_status(t_table *table, int philo_id,
 							const char *msg);
 void					print_death_locked(t_table *table, int philo_id);
 void					print_death(t_table *table, int philo_id);
+
+/* philo_reserve.c */
+void					philo_fork_order(t_philo *philo, int *first,
+							int *second);
+bool					philo_wait_reserve(t_philo *philo, int first,
+							int second);
+void					philo_unreserve(t_table *table, int first, int second);
 
 /* philo_meal.c */
 bool					philo_meal_cycle(t_philo *philo);

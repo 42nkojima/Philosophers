@@ -12,20 +12,6 @@
 
 #include "philo.h"
 
-static void	fork_indices(t_philo *philo, int *first, int *second)
-{
-	if (philo->left_fork_index < philo->right_fork_index)
-	{
-		*first = philo->left_fork_index;
-		*second = philo->right_fork_index;
-	}
-	else
-	{
-		*first = philo->right_fork_index;
-		*second = philo->left_fork_index;
-	}
-}
-
 static bool	acquire_forks(t_philo *philo, int first, int second)
 {
 	t_table	*table;
@@ -38,13 +24,14 @@ static bool	acquire_forks(t_philo *philo, int first, int second)
 	if (table_is_finished(table))
 	{
 		pthread_mutex_unlock(&table->forks[first]);
+		philo_unreserve(table, first, second);
 		return (false);
 	}
 	pthread_mutex_lock(&table->forks[second]);
 	print_status(table, id, "has taken a fork");
-	pthread_mutex_lock(&philo->table->state_mutex);
+	pthread_mutex_lock(&table->state_mutex);
 	philo->last_meal_ms = time_now_ms();
-	pthread_mutex_unlock(&philo->table->state_mutex);
+	pthread_mutex_unlock(&table->state_mutex);
 	return (true);
 }
 
@@ -52,25 +39,40 @@ static void	release_forks(t_table *table, int first, int second)
 {
 	pthread_mutex_unlock(&table->forks[second]);
 	pthread_mutex_unlock(&table->forks[first]);
+	philo_unreserve(table, first, second);
 }
 
-bool	philo_meal_cycle(t_philo *philo)
+static void	clear_hungry(t_philo *philo)
+{
+	pthread_mutex_lock(&philo->table->state_mutex);
+	philo->hungry = false;
+	pthread_mutex_unlock(&philo->table->state_mutex);
+}
+
+static void	eat_phase(t_philo *philo, int first, int second, int id)
 {
 	t_table	*table;
-	int		first;
-	int		second;
-	int		id;
 
 	table = philo->table;
-	id = philo->id + 1;
-	fork_indices(philo, &first, &second);
-	if (!acquire_forks(philo, first, second))
-		return (false);
 	print_status(table, id, "is eating");
 	time_sleep_ms(table, (unsigned int)table->cfg.time_to_eat);
 	pthread_mutex_lock(&table->state_mutex);
 	philo->eat_count++;
 	pthread_mutex_unlock(&table->state_mutex);
 	release_forks(table, first, second);
+}
+
+bool	philo_meal_cycle(t_philo *philo)
+{
+	int		first;
+	int		second;
+
+	philo_fork_order(philo, &first, &second);
+	if (!philo_wait_reserve(philo, first, second))
+		return (false);
+	if (!acquire_forks(philo, first, second))
+		return (clear_hungry(philo), false);
+	eat_phase(philo, first, second, philo->id + 1);
+	clear_hungry(philo);
 	return (true);
 }

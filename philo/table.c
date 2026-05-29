@@ -18,20 +18,20 @@ static int	table_forks_create(t_table *table, int count)
 	int	i;
 
 	table->forks = malloc(sizeof(*table->forks) * count);
-	if (!table->forks)
-		return (-1);
+	table->fork_reserved = calloc(count, sizeof(*table->fork_reserved));
+	if (!table->forks || !table->fork_reserved)
+		return (free(table->forks), free(table->fork_reserved), -1);
 	i = 0;
 	while (i < count)
 	{
 		if (pthread_mutex_init(&table->forks[i], NULL) != 0)
 		{
 			while (i > 0)
-			{
-				i--;
-				pthread_mutex_destroy(&table->forks[i]);
-			}
+				pthread_mutex_destroy(&table->forks[--i]);
 			free(table->forks);
+			free(table->fork_reserved);
 			table->forks = NULL;
+			table->fork_reserved = NULL;
 			return (-1);
 		}
 		i++;
@@ -54,6 +54,7 @@ static int	table_philos_create(t_table *table, int count)
 		table->philos[i].eat_count = 0;
 		table->philos[i].left_fork_index = i;
 		table->philos[i].right_fork_index = (i + 1) % count;
+		table->philos[i].hungry = false;
 		i++;
 	}
 	table->start_time_ms = time_now_ms();
@@ -86,6 +87,7 @@ int	table_init(t_table *table, const t_config *cfg)
 	table->death_printed = false;
 	table->philos = NULL;
 	table->forks = NULL;
+	table->fork_reserved = NULL;
 	if (pthread_mutex_init(&table->state_mutex, NULL) != 0)
 		return (-1);
 	if (pthread_mutex_init(&table->print_mutex, NULL) != 0)
@@ -122,6 +124,8 @@ void	table_destroy(t_table *table)
 		free(table->forks);
 		table->forks = NULL;
 	}
+	free(table->fork_reserved);
+	table->fork_reserved = NULL;
 	free(table->philos);
 	table->philos = NULL;
 	pthread_mutex_destroy(&table->state_mutex);
