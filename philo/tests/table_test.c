@@ -40,7 +40,7 @@ static int	test_fork_indices(void)
 
 static int	philo_fields_ok(t_table *table, int id)
 {
-	return (table->philos[id].id == id && table->philos[id].table == table
+	return (table->philos[id].index == id && table->philos[id].table == table
 		&& table->philos[id].eat_count == 0
 		&& table->philos[id].last_meal_ms == table->start_time_ms);
 }

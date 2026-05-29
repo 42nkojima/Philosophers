@@ -12,67 +12,62 @@
 
 #include "philo.h"
 
-static bool	acquire_forks(t_philo *philo, int first, int second)
+static bool	acquire_forks(t_philo *philo, int first_fork, int second_fork)
 {
 	t_table	*table;
-	int		id;
+	int		philo_id;
 
 	table = philo->table;
-	id = philo->id + 1;
-	pthread_mutex_lock(&table->forks[first]);
-	print_status(table, id, "has taken a fork");
+	philo_id = philo->index + 1;
+	pthread_mutex_lock(&table->forks[first_fork]);
+	print_status(table, philo_id, "has taken a fork");
 	if (table_is_finished(table))
 	{
-		pthread_mutex_unlock(&table->forks[first]);
-		philo_unreserve(table, first, second);
+		pthread_mutex_unlock(&table->forks[first_fork]);
+		philo_release_fork_reservation(table, first_fork, second_fork);
 		return (false);
 	}
-	pthread_mutex_lock(&table->forks[second]);
-	print_status(table, id, "has taken a fork");
-	pthread_mutex_lock(&table->state_mutex);
-	philo->last_meal_ms = time_now_ms();
-	pthread_mutex_unlock(&table->state_mutex);
+	pthread_mutex_lock(&table->forks[second_fork]);
+	print_status(table, philo_id, "has taken a fork");
+	philo_record_meal_start(philo);
 	return (true);
 }
 
-static void	release_forks(t_table *table, int first, int second)
+static void	release_forks(t_table *table, int first_fork, int second_fork)
 {
-	pthread_mutex_unlock(&table->forks[second]);
-	pthread_mutex_unlock(&table->forks[first]);
-	philo_unreserve(table, first, second);
+	pthread_mutex_unlock(&table->forks[second_fork]);
+	pthread_mutex_unlock(&table->forks[first_fork]);
+	philo_release_fork_reservation(table, first_fork, second_fork);
 }
 
-static void	clear_hungry(t_philo *philo)
+static void	clear_eat_request(t_philo *philo)
 {
-	pthread_mutex_lock(&philo->table->state_mutex);
-	philo->hungry = false;
-	pthread_mutex_unlock(&philo->table->state_mutex);
+	philo_set_wants_to_eat(philo, false);
 }
 
-static void	eat_phase(t_philo *philo, int first, int second, int id)
+static void	eat_phase(t_philo *philo, int first_fork, int second_fork,
+		int philo_id)
 {
 	t_table	*table;
 
 	table = philo->table;
-	print_status(table, id, "is eating");
+	print_status(table, philo_id, "is eating");
 	time_sleep_ms(table, (unsigned int)table->cfg.time_to_eat);
-	pthread_mutex_lock(&table->state_mutex);
-	philo->eat_count++;
-	pthread_mutex_unlock(&table->state_mutex);
-	release_forks(table, first, second);
+	philo_increment_eat_count(philo);
+	release_forks(table, first_fork, second_fork);
 }
 
 bool	philo_meal_cycle(t_philo *philo)
 {
-	int		first;
-	int		second;
+	int	first_fork;
+	int	second_fork;
 
-	philo_fork_order(philo, &first, &second);
-	if (!philo_wait_reserve(philo, first, second))
+	philo_order_forks(philo, &first_fork, &second_fork);
+	if (!philo_wait_fork_reservation(philo, first_fork, second_fork))
 		return (false);
-	if (!acquire_forks(philo, first, second))
-		return (clear_hungry(philo), false);
-	eat_phase(philo, first, second, philo->id + 1);
-	clear_hungry(philo);
+	if (!acquire_forks(philo, first_fork, second_fork))
+		return (clear_eat_request(philo), false);
+	eat_phase(philo, first_fork, second_fork, philo->index + 1);
+	clear_eat_request(philo);
 	return (true);
 }

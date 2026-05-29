@@ -12,30 +12,31 @@
 
 #include "philo.h"
 
-static bool	philo_prio_over(t_philo *a, t_philo *b)
+static bool	philo_has_priority(t_philo *candidate, t_philo *philo)
 {
-	if (a->last_meal_ms < b->last_meal_ms)
+	if (candidate->last_meal_ms < philo->last_meal_ms)
 		return (true);
-	if (a->last_meal_ms > b->last_meal_ms)
+	if (candidate->last_meal_ms > philo->last_meal_ms)
 		return (false);
-	return (a->id < b->id);
+	return (candidate->index < philo->index);
 }
 
-void	philo_fork_order(t_philo *philo, int *first, int *second)
+void	philo_order_forks(t_philo *philo, int *first_fork, int *second_fork)
 {
 	if (philo->left_fork_index < philo->right_fork_index)
 	{
-		*first = philo->left_fork_index;
-		*second = philo->right_fork_index;
+		*first_fork = philo->left_fork_index;
+		*second_fork = philo->right_fork_index;
 	}
 	else
 	{
-		*first = philo->right_fork_index;
-		*second = philo->left_fork_index;
+		*first_fork = philo->right_fork_index;
+		*second_fork = philo->left_fork_index;
 	}
 }
 
-static bool	try_reserve_forks(t_philo *philo, int first, int second)
+static bool	try_reserve_forks(t_philo *philo, int first_fork,
+		int second_fork)
 {
 	t_table	*table;
 	t_philo	*left;
@@ -44,44 +45,42 @@ static bool	try_reserve_forks(t_philo *philo, int first, int second)
 
 	table = philo->table;
 	count = table->cfg.number_of_philosophers;
-	left = &table->philos[(philo->id + count - 1) % count];
-	right = &table->philos[(philo->id + 1) % count];
+	left = &table->philos[(philo->index + count - 1) % count];
+	right = &table->philos[(philo->index + 1) % count];
 	pthread_mutex_lock(&table->state_mutex);
-	if (table->finished || table->fork_reserved[first]
-		|| table->fork_reserved[second]
-		|| (left->hungry && philo_prio_over(left, philo))
-		|| (right->hungry && philo_prio_over(right, philo)))
+	if (table->finished || table->fork_reserved[first_fork]
+		|| table->fork_reserved[second_fork]
+		|| (left->wants_to_eat && philo_has_priority(left, philo))
+		|| (right->wants_to_eat && philo_has_priority(right, philo)))
 	{
 		pthread_mutex_unlock(&table->state_mutex);
 		return (false);
 	}
-	table->fork_reserved[first] = true;
-	table->fork_reserved[second] = true;
+	table->fork_reserved[first_fork] = true;
+	table->fork_reserved[second_fork] = true;
 	pthread_mutex_unlock(&table->state_mutex);
 	return (true);
 }
 
-void	philo_unreserve(t_table *table, int first, int second)
+void	philo_release_fork_reservation(t_table *table, int first_fork,
+		int second_fork)
 {
 	pthread_mutex_lock(&table->state_mutex);
-	table->fork_reserved[first] = false;
-	table->fork_reserved[second] = false;
+	table->fork_reserved[first_fork] = false;
+	table->fork_reserved[second_fork] = false;
 	pthread_mutex_unlock(&table->state_mutex);
 }
 
-bool	philo_wait_reserve(t_philo *philo, int first, int second)
+bool	philo_wait_fork_reservation(t_philo *philo, int first_fork,
+		int second_fork)
 {
-	pthread_mutex_lock(&philo->table->state_mutex);
-	philo->hungry = true;
-	pthread_mutex_unlock(&philo->table->state_mutex);
+	philo_set_wants_to_eat(philo, true);
 	while (!table_is_finished(philo->table))
 	{
-		if (try_reserve_forks(philo, first, second))
+		if (try_reserve_forks(philo, first_fork, second_fork))
 			return (true);
 		time_sleep_ms(philo->table, 1);
 	}
-	pthread_mutex_lock(&philo->table->state_mutex);
-	philo->hungry = false;
-	pthread_mutex_unlock(&philo->table->state_mutex);
+	philo_set_wants_to_eat(philo, false);
 	return (false);
 }

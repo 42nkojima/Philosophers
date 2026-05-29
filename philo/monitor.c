@@ -29,7 +29,7 @@ static bool	try_report_death(t_table *table, t_philo *philo)
 		pthread_mutex_unlock(&table->state_mutex);
 		return (false);
 	}
-	philo_id = philo->id + 1;
+	philo_id = philo->index + 1;
 	print_death_locked(table, philo_id);
 	pthread_mutex_unlock(&table->state_mutex);
 	return (true);
