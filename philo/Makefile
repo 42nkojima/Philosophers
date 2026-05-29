@@ -38,8 +38,10 @@ SRCS    = main.c \
           philo_state.c \
           print.c \
           print_format.c \
+          simulation.c \
           table.c \
           table_forks.c \
+          table_state.c \
           time.c
 HEADERS = philo.h
 OBJS    = $(addprefix $(OBJ_DIR)/, $(SRCS:.c=.o))

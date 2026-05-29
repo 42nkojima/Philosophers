@@ -12,9 +12,16 @@
 
 #include "philo.h"
 
-static bool	try_report_death(t_table *table, t_philo *philo)
+static bool	philo_is_dead_locked(t_table *table, t_philo *philo)
 {
 	uint64_t	elapsed;
+
+	elapsed = time_now_ms() - philo->last_meal_ms;
+	return (elapsed >= (uint64_t)table->cfg.time_to_die);
+}
+
+static bool	try_report_death(t_table *table, t_philo *philo)
+{
 	int			philo_id;
 
 	pthread_mutex_lock(&table->state_mutex);
@@ -23,8 +30,7 @@ static bool	try_report_death(t_table *table, t_philo *philo)
 		pthread_mutex_unlock(&table->state_mutex);
 		return (false);
 	}
-	elapsed = time_now_ms() - philo->last_meal_ms;
-	if (elapsed < (uint64_t)table->cfg.time_to_die)
+	if (!philo_is_dead_locked(table, philo))
 	{
 		pthread_mutex_unlock(&table->state_mutex);
 		return (false);
@@ -59,7 +65,7 @@ static bool	try_finish_all_fed(t_table *table)
 		}
 		i++;
 	}
-	table->finished = true;
+	table_finish_locked(table);
 	pthread_mutex_unlock(&table->state_mutex);
 	return (true);
 }

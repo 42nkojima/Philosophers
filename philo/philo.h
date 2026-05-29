@@ -59,7 +59,11 @@ int						parse_config(int ac, char **av, t_config *cfg);
 /* table.c */
 int						table_init(t_table *table, const t_config *cfg);
 void					table_destroy(t_table *table);
+
+/* table_state.c */
 bool					table_is_finished(t_table *table);
+void					table_finish_locked(t_table *table);
+void					table_finish(t_table *table);
 
 /* table_forks.c */
 int						table_forks_create(t_table *table, int count);
@@ -97,6 +101,9 @@ bool					philo_meal_cycle(t_philo *philo);
 
 /* philo_routine.c */
 void					*philo_routine(void *arg);
+
+/* simulation.c */
+int						simulation_run(t_table *table);
 
 /* monitor.c */
 void					*monitor_routine(void *arg);

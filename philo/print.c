@@ -30,7 +30,7 @@ void	print_death_locked(t_table *table, int philo_id)
 {
 	if (table->death_printed)
 		return ;
-	table->finished = true;
+	table_finish_locked(table);
 	table->death_printed = true;
 	pthread_mutex_lock(&table->print_mutex);
 	print_write_line(table, philo_id, "died");

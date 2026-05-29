@@ -20,35 +20,20 @@ static int	table_philos_create(t_table *table, int count)
 	table->philos = malloc(sizeof(*table->philos) * count);
 	if (!table->philos)
 		return (-1);
+	table->start_time_ms = time_now_ms();
 	i = 0;
 	while (i < count)
 	{
 		table->philos[i].index = i;
 		table->philos[i].table = table;
+		table->philos[i].last_meal_ms = table->start_time_ms;
 		table->philos[i].eat_count = 0;
 		table->philos[i].left_fork_index = i;
 		table->philos[i].right_fork_index = (i + 1) % count;
 		table->philos[i].wants_to_eat = false;
 		i++;
 	}
-	table->start_time_ms = time_now_ms();
-	i = 0;
-	while (i < count)
-	{
-		table->philos[i].last_meal_ms = table->start_time_ms;
-		i++;
-	}
 	return (0);
-}
-
-bool	table_is_finished(t_table *table)
-{
-	bool	finished;
-
-	pthread_mutex_lock(&table->state_mutex);
-	finished = table->finished;
-	pthread_mutex_unlock(&table->state_mutex);
-	return (finished);
 }
 
 int	table_init(t_table *table, const t_config *cfg)

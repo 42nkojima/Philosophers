@@ -40,11 +40,6 @@ static void	release_forks(t_table *table, int first_fork, int second_fork)
 	philo_release_fork_reservation(table, first_fork, second_fork);
 }
 
-static void	clear_eat_request(t_philo *philo)
-{
-	philo_set_wants_to_eat(philo, false);
-}
-
 static void	eat_phase(t_philo *philo, int first_fork, int second_fork,
 		int philo_id)
 {
@@ -66,8 +61,8 @@ bool	philo_meal_cycle(t_philo *philo)
 	if (!philo_wait_fork_reservation(philo, first_fork, second_fork))
 		return (false);
 	if (!acquire_forks(philo, first_fork, second_fork))
-		return (clear_eat_request(philo), false);
+		return (philo_set_wants_to_eat(philo, false), false);
 	eat_phase(philo, first_fork, second_fork, philo->index + 1);
-	clear_eat_request(philo);
+	philo_set_wants_to_eat(philo, false);
 	return (true);
 }

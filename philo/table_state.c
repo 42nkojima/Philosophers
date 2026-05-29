@@ -1,28 +1,35 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   table_state.c                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/06 05:48:09 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/26 03:39:28 by nkojima          ###   ########.fr       */
+/*   Created: 2026/05/30 08:00:00 by nkojima           #+#    #+#             */
+/*   Updated: 2026/05/30 08:00:00 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 
-int	main(int ac, char **av)
+bool	table_is_finished(t_table *table)
 {
-	t_config	cfg;
-	t_table		table;
+	bool	finished;
 
-	if (parse_config(ac, av, &cfg) == -1)
-		return (1);
-	if (table_init(&table, &cfg) == -1)
-		return (1);
-	if (simulation_run(&table) == -1)
-		return (table_destroy(&table), 1);
-	table_destroy(&table);
-	return (0);
+	pthread_mutex_lock(&table->state_mutex);
+	finished = table->finished;
+	pthread_mutex_unlock(&table->state_mutex);
+	return (finished);
+}
+
+void	table_finish_locked(t_table *table)
+{
+	table->finished = true;
+}
+
+void	table_finish(t_table *table)
+{
+	pthread_mutex_lock(&table->state_mutex);
+	table_finish_locked(table);
+	pthread_mutex_unlock(&table->state_mutex);
 }
