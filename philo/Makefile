@@ -33,6 +33,7 @@ SRCS    = main.c \
           monitor.c \
           parse.c \
           philo_meal.c \
+          philo_reserve.c \
           philo_routine.c \
           print.c \
           print_format.c \

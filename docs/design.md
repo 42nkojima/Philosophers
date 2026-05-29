@@ -18,43 +18,49 @@
 - ログ出力を重ねない
 - simulation 終了後に不要な状態ログを出さない
 
-## 採用するデッドロック回避方針
+## 採用するデッドロック回避・公平化方針
 
-mandatory では、デッドロック回避にリソース階層方式を採用する。
+### fork 予約（誤死亡対策）
 
-各 fork に配列 index として一意な id を与え、philosopher が 2 本の fork を取るときは必ず小さい fork id から lock する。
+`fork_reserved[]` を `state_mutex` で保護する。
+
+食事の流れ:
+
+1. `state_mutex` 下で両 fork が未予約なら、両方を予約して unlock
+2. 取れなければ短い sleep 後に再試行（`time_sleep_ms`、終了フラグも確認）
+3. 予約後にのみ fork mutex を触る（この時点ではまだ1本も握らない）
+4. リソース階層順（小さい fork id 先）で両方 lock → ログ → `last_meal_time` 更新
+5. 食事 → `eat_count` 更新 → fork unlock → 予約解除
+
+これにより「1本だけ握ったまま2本目を待つ」状態を避ける。
+
+### リソース階層（デッドロック対策）
+
+予約取得後、実際の `pthread_mutex_lock` は常に小さい fork id から行う。
 
 ```c
 first = min(left_fork, right_fork);
 second = max(left_fork, right_fork);
 ```
 
-食事時は次の順序にする。
+循環待ちを作らない。予約と組み合わせて、no-death 定番テストの安定性を上げる。
 
-1. `first` の fork mutex を lock する
-2. `has taken a fork` を出力する
-3. `second` の fork mutex を lock する
-4. `has taken a fork` を出力する
-5. meal/state mutex を取得し、`last_meal_time` を更新し、解放する
-6. `is eating` を出力する
-7. `time_to_eat` だけ待つ
-8. meal/state mutex を取得し、`eat_count` を更新し、解放する
-9. `second`、`first` の順に unlock する
-10. `is sleeping` を出力する
-11. `time_to_sleep` だけ待つ
-12. `is thinking` を出力する
-13. ループ先頭に戻る
+### 補助: 起動遅延
+
+奇数 `id` の philosopher は開始時に `time_to_eat / 2` だけ遅延（`stagger_start`）。予約の補助。
+
+食事ループ全体:
+
+1. 予約（上記）
+2. 両 fork lock・ログ・`last_meal_time` 更新
+3. `is eating` → `time_to_eat`
+4. `eat_count` 更新 → fork unlock → 予約解除
+5. `is sleeping` → `time_to_sleep` → `is thinking`
+6. ループ先頭へ
 
 philosopher のルーティンは eat → sleep → think の繰り返しである。
 subject が要求する状態ログは `has taken a fork`、`is eating`、`is sleeping`、`is thinking`、`died` の5種類。
 すべての状態遷移でログを出力する。
-
-この方式では、すべての thread が同じ順序規則に従って mutex を取得する。
-待ち関係が小さい id から大きい id にしか進まないため、循環待ちを作れない。
-その結果、deadlock を構造的に避けられる。
-
-偶数・奇数 philosopher で fork 取得順を変える方式も使えるが、この実装ではリソース階層方式を選ぶ。
-理由は、人数が偶数でも奇数でも説明が変わらず、deadlock しない根拠を評価時に説明しやすいためである。
 
 ## 共有状態と mutex
 
@@ -79,7 +85,7 @@ mutex の役割は混ぜすぎない。
 
 - fork mutex: fork の占有を守る
 - print mutex: ログ出力を直列化する
-- meal/state mutex: `last_meal_time`、`eat_count`、終了状態を守る
+- meal/state mutex: `last_meal_time`、`eat_count`、`fork_reserved`、終了状態を守る
 
 異種 mutex を同時に保持する場合のグローバルロック順序は次の通り。
 
@@ -144,7 +150,7 @@ philosopher 自身が died を出力すると、monitor との二重出力やロ
 - 数値変換、負数、空文字、overflow の検出
 - config 初期化
 - fork id の計算
-- `min(left_fork, right_fork)` と `max(left_fork, right_fork)` による取得順序
+- `fork_reserved` による予約と、min/max による実 lock 順序
 - timestamp 差分計算
 - 死亡判定関数
 

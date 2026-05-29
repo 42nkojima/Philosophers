@@ -7,11 +7,12 @@ The `philo` program simulates the dining philosophers problem: each philosopher
 runs in its own thread, shares forks with neighbors, and must eat, sleep, and
 think without data races, deadlocks, or incorrect death detection.
 
-The goal is to practice shared-state protection with `pthread_mutex_t`, correct
-lock ordering (resource hierarchy on forks), and a monitor thread that detects
-death within 10 ms and stops the simulation when a philosopher dies or when
-every philosopher has eaten the required number of meals (optional fifth
-argument).
+Each philosopher repeatedly takes two forks, eats, sleeps, and thinks. A separate
+monitor thread checks whether a philosopher has gone too long without starting a
+meal and stops the simulation on death or when every philosopher has eaten enough
+times (optional fifth argument). Forks are protected with mutexes; philosophers
+reserve both forks before locking them, then acquire the mutexes in a fixed
+order to avoid deadlock.
 
 ## Instructions
 
@@ -45,7 +46,7 @@ make -C philo norm
 
 ## Resources
 
-- [Philo project notes (Zenn)](https://zenn.dev/tokochiz/scraps/7d7a0323f85201) — threads, mutexes, deadlock, stagger, and common eval scenarios
+- [Philo project notes (Zenn)](https://zenn.dev/tokochiz/scraps/7d7a0323f85201) — threads, mutexes, deadlock, and common eval scenarios
 - [(outdated) What was philosopher? (Qiita)](https://qiita.com/42yliu/items/86d16cdbc584c250ca6e) — Coffman conditions, deadlock prevention vs avoidance, starvation (legacy subject)
 - [Dining philosophers problem (Wikipedia, JA)](https://ja.wikipedia.org/wiki/%E9%A3%9F%E4%BA%8B%E3%81%99%E3%82%8B%E5%93%B2%E5%AD%A6%E8%80%85%E3%81%AE%E5%95%8F%E9%A1%8C) — classic problem statement and solutions (hierarchy, waiter, Chandy/Misra)
 - [Slides: understanding Philosophers (Google)](https://docs.google.com/presentation/d/12-lAykLu-RVACE1gI2aP-uEYZoOaeeFVYGh8W4ttTNw/edit?slide=id.gd4524b1be8_0_253#slide=id.gd4524b1be8_0_253) — 42-oriented overview
@@ -60,9 +61,10 @@ make -C philo norm
 
 AI tools (Cursor / Claude) were used for:
 
-- Drafting and refining `docs/design.md` (mutex roles, global lock order, test matrix)
-- Multi-agent review of concurrency and subject compliance on feature branches
-- Suggesting fixes for optional meal-count termination, fork acquisition, and README wording
+- Drafting and refining `docs/design.md` (mutex layout, lock order, test matrix)
+- Reviewing concurrency and subject compliance on feature branches
+- Designing fork reservation and meal-priority scheduling to stabilize no-death test cases
+- README and wording review
 
 All simulation logic, mutex layout, and final code were written and verified by the
 author (build, unit tests, and manual scenario runs).
