@@ -12,13 +12,6 @@
 
 #include "philo.h"
 
-void	philo_set_wants_to_eat(t_philo *philo, bool value)
-{
-	pthread_mutex_lock(&philo->table->state_mutex);
-	philo->wants_to_eat = value;
-	pthread_mutex_unlock(&philo->table->state_mutex);
-}
-
 void	philo_record_meal_start(t_philo *philo)
 {
 	pthread_mutex_lock(&philo->table->state_mutex);

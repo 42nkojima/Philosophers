@@ -63,7 +63,7 @@ AI tools (Cursor / Claude) were used for:
 
 - Drafting and refining `docs/design.md` (mutex layout, lock order, test matrix)
 - Reviewing concurrency and subject compliance on feature branches
-- Designing fork reservation and meal-priority scheduling to stabilize no-death test cases
+- Designing fork reservation and turn-based scheduling to stabilize no-death test cases
 - README and wording review
 
 All simulation logic, mutex layout, and final code were written and verified by the

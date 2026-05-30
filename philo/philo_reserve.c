@@ -12,17 +12,20 @@
 
 #include "philo.h"
 
-/*
-Who should have priority in eating
-when compared to the philosopher next to me?
-*/
-static bool	philo_has_priority(t_philo *candidate, t_philo *philo)
+#define TURN_EVEN 0
+#define TURN_ODD 1
+#define TURN_LAST 2
+
+static int	philo_meal_group(t_philo *philo)
 {
-	if (candidate->last_meal_ms < philo->last_meal_ms)
-		return (true);
-	if (candidate->last_meal_ms > philo->last_meal_ms)
-		return (false);
-	return (candidate->index < philo->index);
+	int	count;
+
+	count = philo->table->cfg.number_of_philosophers;
+	if (count % 2 == 0)
+		return (philo->index % 2);
+	if (philo->index == count - 1)
+		return (TURN_LAST);
+	return (philo->index % 2);
 }
 
 void	philo_order_forks(t_philo *philo, int *first_fork, int *second_fork)
@@ -41,54 +44,61 @@ void	philo_order_forks(t_philo *philo, int *first_fork, int *second_fork)
 
 /*
 Atomically reserve both forks under state_mutex.
-Yield to a neighbor that wants to eat and has higher priority.
-(older last_meal_ms, than lower index).
+The active turn is structural, not based on another philosopher's state.
 */
 static bool	try_reserve_forks(t_philo *philo, int first_fork, int second_fork)
 {
 	t_table	*table;
-	t_philo	*left;
-	t_philo	*right;
-	int		count;
+	int		group;
 
 	table = philo->table;
-	count = table->cfg.number_of_philosophers;
-	left = &table->philos[(philo->index + count - 1) % count];
-	right = &table->philos[(philo->index + 1) % count];
+	group = philo_meal_group(philo);
 	pthread_mutex_lock(&table->state_mutex);
-	if (table->finished || table->fork_reserved[first_fork]
-		|| table->fork_reserved[second_fork] || (left->wants_to_eat
-			&& philo_has_priority(left, philo)) || (right->wants_to_eat
-			&& philo_has_priority(right, philo)))
+	if (table->finished || table->meal_turn != group
+		|| table->fork_reserved[first_fork]
+		|| table->fork_reserved[second_fork])
 	{
 		pthread_mutex_unlock(&table->state_mutex);
 		return (false);
 	}
 	table->fork_reserved[first_fork] = true;
 	table->fork_reserved[second_fork] = true;
+	table->active_reservations++;
 	pthread_mutex_unlock(&table->state_mutex);
 	return (true);
 }
 
-void	philo_release_fork_reservation(t_table *table, int first_fork,
+void	philo_release_fork_reservation(t_philo *philo, int first_fork,
 		int second_fork)
 {
+	t_table	*table;
+
+	table = philo->table;
 	pthread_mutex_lock(&table->state_mutex);
 	table->fork_reserved[first_fork] = false;
 	table->fork_reserved[second_fork] = false;
+	if (table->active_reservations > 0)
+		table->active_reservations--;
+	if (table->active_reservations == 0)
+	{
+		if (table->cfg.number_of_philosophers % 2 == 0)
+			table->meal_turn = 1 - table->meal_turn;
+		else if (table->meal_turn == TURN_LAST)
+			table->meal_turn = TURN_EVEN;
+		else
+			table->meal_turn++;
+	}
 	pthread_mutex_unlock(&table->state_mutex);
 }
 
 bool	philo_wait_fork_reservation(t_philo *philo, int first_fork,
 		int second_fork)
 {
-	philo_set_wants_to_eat(philo, true);
-	while (!table_is_finished(philo->table))
+	while (!table_is_finished(philo->table) && !philo_has_eaten_enough(philo))
 	{
 		if (try_reserve_forks(philo, first_fork, second_fork))
 			return (true);
 		time_sleep_ms(philo->table, 1);
 	}
-	philo_set_wants_to_eat(philo, false);
 	return (false);
 }
