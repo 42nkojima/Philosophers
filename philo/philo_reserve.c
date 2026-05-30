@@ -6,12 +6,16 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/29 22:05:00 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/29 22:05:00 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/30 11:48:03 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 
+/*
+Who should have priority in eating
+when compared to the philosopher next to me?
+*/
 static bool	philo_has_priority(t_philo *candidate, t_philo *philo)
 {
 	if (candidate->last_meal_ms < philo->last_meal_ms)
@@ -35,8 +39,12 @@ void	philo_order_forks(t_philo *philo, int *first_fork, int *second_fork)
 	}
 }
 
-static bool	try_reserve_forks(t_philo *philo, int first_fork,
-		int second_fork)
+/*
+Atomically reserve both forks under state_mutex.
+Yield to a neighbor that wants to eat and has higher priority.
+(older last_meal_ms, than lower index).
+*/
+static bool	try_reserve_forks(t_philo *philo, int first_fork, int second_fork)
 {
 	t_table	*table;
 	t_philo	*left;
@@ -49,9 +57,9 @@ static bool	try_reserve_forks(t_philo *philo, int first_fork,
 	right = &table->philos[(philo->index + 1) % count];
 	pthread_mutex_lock(&table->state_mutex);
 	if (table->finished || table->fork_reserved[first_fork]
-		|| table->fork_reserved[second_fork]
-		|| (left->wants_to_eat && philo_has_priority(left, philo))
-		|| (right->wants_to_eat && philo_has_priority(right, philo)))
+		|| table->fork_reserved[second_fork] || (left->wants_to_eat
+			&& philo_has_priority(left, philo)) || (right->wants_to_eat
+			&& philo_has_priority(right, philo)))
 	{
 		pthread_mutex_unlock(&table->state_mutex);
 		return (false);
