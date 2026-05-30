@@ -6,7 +6,7 @@
 /*   By: nkojima <nkojima@student.42tokyo.jp>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/30 08:00:00 by nkojima           #+#    #+#             */
-/*   Updated: 2026/05/30 08:00:00 by nkojima          ###   ########.fr       */
+/*   Updated: 2026/05/30 10:14:15 by nkojima          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ int	simulation_run(t_table *table)
 	if (start_monitor(&monitor, table) == -1)
 		return (-1);
 	started = start_philosophers(table, count);
-	if (started != count)
+	if (started < count)
 	{
 		table_finish(table);
 		join_philosophers(table, started);
