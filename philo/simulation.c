@@ -59,8 +59,8 @@ int	simulation_run(t_table *table)
 	if (started < count)
 	{
 		table_finish(table);
-		join_philosophers(table, started);
 		pthread_join(monitor, NULL);
+		join_philosophers(table, started);
 		return (-1);
 	}
 	pthread_join(monitor, NULL);
