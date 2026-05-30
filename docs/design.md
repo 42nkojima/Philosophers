@@ -1,184 +1,231 @@
 # Philosophers Design Notes
 
+実装の正本。`philo/` の mutex 分担・食事許可・ロック順序・テスト方針をまとめる。
+
 ## 課題の捉え方
 
-この課題は、単にマルチスレッドを使って処理を並列化する課題ではない。
-主題は、複数の実行主体が同時に進行する状況で、共有リソースと共有状態を安全に扱うことである。
+主題は並列化ではなく、複数 thread が共有リソースと共有状態を安全に扱うこと。
 
-`philo` の mandatory では、各 philosopher は別々の thread として動く。
-一方で、fork、終了状態、食事時刻、食事回数、ログ出力などは複数 thread から参照される共有対象になる。
-そのため、設計の中心は「どのデータをどの mutex で守るか」と「mutex をどの順序で取るか」になる。
+mandatory `philo` では各 philosopher が別 thread になり、fork・終了状態・食事時刻・食事回数・ログが共有される。設計の中心は次の2点。
 
-この課題で特に意識することは次の通り。
+- どのデータをどの mutex で守るか
+- mutex をどの順序で取るか
+
+特に守ること:
 
 - fork の二重取得を防ぐ
 - data race を起こさない
 - deadlock を起こさない
-- 死亡判定を遅らせすぎない
-- ログ出力を重ねない
+- 死亡判定と `died` 出力を遅らせすぎない（10 ms 以内）
+- ログを重ねない
 - simulation 終了後に不要な状態ログを出さない
+- 「1 本だけ握ったまま長時間 2 本目を待つ」状態を避ける（誤死亡の主因）
 
-## 採用するデッドロック回避・公平化方針
+## subject 上の制約
 
-### fork 予約（誤死亡対策）
+mandatory で使える同期は mutex のみ（`pthread_cond_t` は不可）。
 
-`fork_reserved[]` を `state_mutex` で保護する。
+```text
+pthread_create / pthread_join
+pthread_mutex_init / destroy / lock / unlock
+```
 
-食事の流れ:
+fork は subject 上も mutex で守る。`fork_reserved[]` は予約用の論理状態であり、実 fork の排他は `forks[]` の mutex が担う。
 
-1. `state_mutex` 下で両 fork が未予約なら、両方を予約して unlock
-2. 取れなければ短い sleep 後に再試行（`time_sleep_ms`、終了フラグも確認）
-3. 予約後にのみ fork mutex を触る（この時点ではまだ1本も握らない）
-4. リソース階層順（小さい fork id 先）で両方 lock → ログ → `last_meal_time` 更新
-5. 食事 → `eat_count` 更新 → fork unlock → 予約解除
+## データ構造
 
-これにより「1本だけ握ったまま2本目を待つ」状態を避ける。
+### `t_table`
 
-### リソース階層（デッドロック対策）
+| メンバ | 役割 |
+|--------|------|
+| `state_mutex` | `finished`, `death_printed`, `fork_reserved[]`, 各 philo の `last_meal_ms` / `eat_count` / `wants_to_eat` |
+| `print_mutex` | ログ 1 行の直列化 |
+| `forks[]` | 各 fork の `pthread_mutex_t` |
+| `fork_reserved[]` | 食事許可済みの論理予約（`state_mutex` 下でのみ読み書き） |
+| `finished` | simulation 終了 |
+| `death_printed` | `died` を 1 回だけ出すためのフラグ |
 
-予約取得後、実際の `pthread_mutex_lock` は常に小さい fork id から行う。
+### `t_philo`
+
+| メンバ | 役割 |
+|--------|------|
+| `last_meal_ms` | 最後の食事開始時刻（死亡判定用） |
+| `eat_count` | 食事回数（optional 5 引数用） |
+| `wants_to_eat` | 隣との優先度比較用（食事待ち中 true） |
+| `left_fork_index` / `right_fork_index` | 円卓上の隣接 fork |
+
+`enum` による philosopher 状態機械は採用していない。ログ 5 種と `wants_to_eat` で足りる。
+
+## デッドロック回避
+
+### リソース階層
+
+実 fork の `pthread_mutex_lock` は常に小さい fork index から（`philo_order_forks`）。
 
 ```c
-first = min(left_fork, right_fork);
-second = max(left_fork, right_fork);
+first  = min(left_fork_index, right_fork_index);
+second = max(left_fork_index, right_fork_index);
 ```
 
-循環待ちを作らない。予約と組み合わせて、no-death 定番テストの安定性を上げる。
+循環待ちを作らない。
 
-### 補助: 起動遅延
+### fork 予約
 
-奇数 `id` の philosopher は開始時に `time_to_eat / 2` だけ遅延（`stagger_start`）。予約の補助。
+`fork_reserved[i] == true` は「この fork は予約済みで、これから物理 lock する」意味。
 
-食事ループ全体:
+予約は `state_mutex` 下で両方まとめて行う。予約に成功するまで fork mutex は触らない。これで「1 本 lock 済み・2 本目待ち」の長時間ブロックを避ける。
 
-1. 予約（上記）
-2. 両 fork lock・ログ・`last_meal_time` 更新
-3. `is eating` → `time_to_eat`
-4. `eat_count` 更新 → fork unlock → 予約解除
-5. `is sleeping` → `time_to_sleep` → `is thinking`
-6. ループ先頭へ
+## 饥饿（starvation）対策
 
-philosopher のルーティンは eat → sleep → think の繰り返しである。
-subject が要求する状態ログは `has taken a fork`、`is eating`、`is sleeping`、`is thinking`、`died` の5種類。
-すべての状態遷移でログを出力する。
+階層だけでは `5 800 200 200` などで隣が先に食べ続け、1 本目だけ取って `time_to_die` 内に食事開始できないケースが出る。スケジューリングの公平性問題。
 
-## 共有状態と mutex
+### 優先度
 
-fork は `pthread_mutex_t` の配列で管理する。
-各 fork mutex は、その fork を同時に複数 philosopher が取らないために使う。
+失敗回数カウンタは使わない（OS スケジューラ依存で不安定）。
 
-ログ出力には専用の print mutex を使う。
-subject ではログが重なってはいけないため、状態メッセージの出力は必ずこの mutex で直列化する。
-終了後に通常ログを出さないように、print 時には終了状態も確認する。
-ただし、死亡ログは一度だけ必ず出せるように扱う。
+`last_meal_ms` が古い philosopher を優先する。全員同じ `time_to_die` なので、実質「死亡期限が近い者優先」と同じ。
 
-食事時刻と食事回数は、monitor thread と philosopher thread の両方から触られる。
-そのため、`last_meal_time` と `eat_count` は meal/state 用 mutex で保護する。
-読み取りだけの場合でも、書き込み側と同じ mutex を通す。
+同値のときは `index` が小さい方を優先（`philo_has_priority`）。
 
-終了フラグも共有状態である。
-philosopher thread は routine の途中で終了フラグを確認し、monitor は死亡または全員の食事回数達成で終了フラグを立てる。
-このフラグの読み書きも mutex で保護する。
+### 予約条件（`try_reserve_forks`）
 
-mutex の役割は混ぜすぎない。
-基本方針は次のように分ける。
+`state_mutex` 下で、次をすべて満たすときだけ両 fork を予約する。
 
-- fork mutex: fork の占有を守る
-- print mutex: ログ出力を直列化する
-- meal/state mutex: `last_meal_time`、`eat_count`、`fork_reserved`、終了状態を守る
+- simulation 未終了
+- 両 fork が未予約
+- 左隣が `wants_to_eat` かつ隣の方が優先 → 譲る
+- 右隣が `wants_to_eat` かつ隣の方が優先 → 譲る
 
-異種 mutex を同時に保持する場合のグローバルロック順序は次の通り。
+### 食事待ちループ（`philo_wait_fork_reservation`）
 
+1. `wants_to_eat = true`
+2. 予約を試行
+3. 失敗なら `time_sleep_ms(table, 1)` で再試行（終了フラグも確認）
+4. 成功したら fork mutex へ進む
+5. 食事完了または失敗時に `wants_to_eat = false`、予約解除
+
+`pthread_cond_t` が使えないためポーリング。再試行間隔は 1 ms（`time_sleep_ms` 内で 500 μs 刻みの `usleep`）。
+
+### 起動遅延（補助）
+
+奇数 `index` の philosopher は routine 開始時に `time_to_eat / 2` ms 遅延（`stagger_start`）。予約競争の偏りを緩和する。
+
+## 食事ループ（2 人以上）
+
+`philo_routine` → `routine_multi`:
+
+```text
+stagger_start（奇数 index のみ）
+loop while not finished:
+  philo_meal_cycle
+  rest_phase（sleep → thinking ログ）
 ```
-fork mutex → meal/state mutex → print mutex
-```
 
-複数の mutex を取得する必要があるときは、必ずこの左から右の順序で取得する。
-逆順での取得や、右側を保持した状態で左側を取得することは禁止する。
-この順序をすべてのコードパスで守ることで、異種 mutex 間のデッドロックを防ぐ。
+`philo_meal_cycle`:
 
-print 関数は次の順序で動作する。
+1. `philo_order_forks` で first / second を決定
+2. `philo_wait_fork_reservation`（上記）
+3. `acquire_forks`: `forks[first]` lock → fork ログ → 終了なら解放して return
+4. `forks[second]` lock → fork ログ → `philo_record_meal_start`（`last_meal_ms` 更新）
+5. `eat_phase`: `is eating` ログ → `time_sleep_ms(time_to_eat)` → `eat_count++` → fork unlock → 予約解除
+6. `wants_to_eat = false`
 
-1. meal/state mutex を取得して終了フラグを確認する
-2. 終了済みなら meal/state mutex を解放して return する（通常ログを出さない）
-3. 終了していなければ print mutex を取得する（meal/state → print の順序でグローバルロック順序に適合）
-4. メッセージを出力する
-5. print mutex を解放し、meal/state mutex を解放する
+`last_meal_ms` は両 fork 取得と 2 回目の `has taken a fork` の後、`is eating` の前に更新する。subject の「最後の食事開始」基準に合わせる。
 
-死亡ログだけは終了フラグに関係なく一度だけ出す。
-この方式により、print mutex 単体で終了フラグを読むことによる data race を回避する。
+各 philo の `last_meal_ms` は thread 生成前に simulation 開始時刻で初期化する。未初期化だと最初の食事前に monitor が誤死亡判定する。
 
-終了検出時の fork 解放について:
-philosopher が fork を保持した状態で終了を検出した場合、保持中の fork mutex をすべて unlock してから routine を終了する。
-fork を保持したまま終了すると他の philosopher がデッドロックする。
+## mutex の役割分担
 
-終了確認のタイミングと対応:
+- **fork mutex**: 物理 fork の占有
+- **state_mutex**: 終了フラグ、予約配列、食事時刻・回数、`wants_to_eat`
+- **print_mutex**: `write` による 1 行出力の直列化
 
-1. fork 取得前（routine ループの先頭）: 終了済みならそのまま return する。
-2. 1本目の fork 取得後、2本目の取得前: 1本目を unlock してから return する。
-3. 両方の fork 取得後（食事中）: 食事完了後に両方 unlock して、次のループ先頭で終了確認する。
+### ログ（`print_status`）
 
-食事中（`time_to_eat` の sleep 中）は `precise_sleep` が終了フラグを確認するため、食事の途中でも早期に抜けられる。
-その場合は両方の fork を unlock してから return する。
+1. `state_mutex` で `finished` を確認
+2. 終了済みなら return（通常ログなし）
+3. `print_mutex` で 1 行出力
+4. 両 mutex を解放
 
-## 1人の場合の扱い
+死亡ログ（`print_death_locked`）は monitor が `state_mutex` 保持中に呼ぶ。`death_printed` で 1 回だけ。`finished` を立ててから `died` を出す。
 
-`number_of_philosophers == 1` は特別扱いする。
+fork を 1 本握った状態で `print_status` するパスがある（1 本目取得直後のログ）。意図的で、ログ直後に終了チェックして fork を解放する。
 
-fork が 1 本しかないため、philosopher は 2 本目の fork を取れない。
-通常の fork order 処理に流すと、同じ mutex を 2 回 lock しようとする危険がある。
+### monitor（`monitor_routine`）
 
-1 人の場合は次の流れにする。
+別 thread で巡回:
 
-1. 唯一の fork を lock する
-2. `has taken a fork` を出力する
-3. `precise_sleep` で待機する（終了フラグを短い間隔で確認）
-4. monitor が死亡を検出し、終了フラグを立て、`died` を出力する
-5. philosopher は終了フラグを検知し、fork を unlock して終了する
+1. 各 philo の死亡判定（`last_meal_ms` は `state_mutex` 下で読む）
+2. optional: 全員 `eat_count >= must` なら `finished`
+3. 1 ms sleep（`time_sleep_ms`）して繰り返し
 
-死亡の検出と `died` の出力は monitor に一本化する。
-philosopher 自身が died を出力すると、monitor との二重出力やロック順序の問題が生じるため。
+`state_mutex` を長時間保持したまま sleep しない。死亡検出の遅延を抑える。
+
+## 1 人の場合
+
+`routine_one_philo`:
+
+1. 唯一の fork を lock
+2. `has taken a fork` を 1 回だけ出力
+3. `time_sleep_ms(UINT_MAX)` で終了まで待機（500 μs 刻みで `finished` を確認）
+4. monitor が死亡検出 → `died`（philosopher 側は出さない）
+5. fork unlock して終了
+
+2 本目の fork がないため、通常の予約・階層ルートに入れない。
+
+## 時間まわり
+
+- 時刻: `gettimeofday` → `time_now_ms()`
+- 待機: `time_sleep_ms`（deadline まで 500 μs 刻みの `usleep`、`table_is_finished` を都度確認）
+- monitor の巡回間隔: 1 ms
+- 予約リトライ: 1 ms
+
+長い `usleep` を一発で使わない。10 ms 以内の死亡ログ要件と早期終了のため。
 
 ## テスト方針
 
-ユニットテストは、入力と出力がはっきりしている純粋ロジック寄りの関数に絞る。
-並行処理そのものはタイミング依存のため、ユニットテストだけでは十分に検証できない。
+### ユニットテスト向き
 
-ユニットテスト向きの対象は次の通り。
+- 引数パース、overflow、異常値
+- `philo_order_forks` の境界（n=2,5 の円環端）
+- 時刻差分
+- print の終了後抑止（`finished` 時）
 
-- 引数パース
-- 数値変換、負数、空文字、overflow の検出
-- config 初期化
-- fork id の計算
-- `fork_reserved` による予約と、min/max による実 lock 順序
-- timestamp 差分計算
-- 死亡判定関数
+### 実行テスト（no-death を重点）
 
-fork order では、特に円環の境界を確認する。
-
-```text
-n = 5, philosopher 1: left=0, right=1 -> first=0, second=1
-n = 5, philosopher 5: left=4, right=0 -> first=0, second=4
-n = 2, philosopher 1: left=0, right=1 -> first=0, second=1
-n = 2, philosopher 2: left=1, right=0 -> first=0, second=1
-```
-
-thread routine、mutex のタイミング、death log の遅延、data race、deadlock は実行テストで確認する。
-ThreadSanitizer (`-fsanitize=thread`) で data race がないことを確認する。
-
-基本シナリオは次の通り。
+subject 推奨: philosopher ≤ 200、各時間引数 ≥ 60 ms。
 
 ```sh
-./philo 1 800 200 200       # 死亡する（fork 1本のみ）
-./philo 2 800 200 200       # 死亡しない
-./philo 5 800 200 200       # 死亡しない
-./philo 5 800 200 200 3     # 各 philosopher が 3 回食べて停止する
-./philo 4 410 200 200       # 死亡しない（time_to_die > eat + sleep）
-./philo 4 310 200 100       # 死亡する（time_to_die < eat + sleep の余裕不足）
-./philo 200 800 200 200     # 死亡しない、大人数での動作確認
+./philo 1 800 200 200
+./philo 5 800 200 200
+./philo 5 800 200 200 7
+./philo 4 410 200 200
+./philo 4 310 200 100
+./philo 2 800 200 200
+./philo 2 310 200 100
+./philo 3 610 200 200
+./philo 7 800 200 200
+./philo 10 800 200 200 5
+./philo 200 800 200 200
 ```
 
-異常系では、引数不足、余分な引数、ゼロ、負数、非数値、overflow を確認する。
+期待:
+
+- `1 800 200 200`: 食べず ~800 ms で死亡
+- `5 800 200 200` / `4 410 200 200` 等: 誰も死なない（複数回実行で安定）
+- `4 310 200 100`: 誰か死亡
+- optional 付き: 規定回数食事後に停止、死亡なし
+
+ログの整合:
+
+- `is eating` の前に `has taken a fork` が 2 回
+- 隣が同時に `is eating` しない
+- `died` の後に状態ログなし
+- 死亡期待ケースで `died` が期限から 10 ms 以内
+
+ThreadSanitizer（`-fsanitize=thread`）で data race 確認。
+
+### 異常系引数
 
 ```sh
 ./philo
@@ -188,63 +235,31 @@ ThreadSanitizer (`-fsanitize=thread`) で data race がないことを確認す�
 ./philo 5 800 0 200
 ./philo 5 800 200
 ./philo 5 800 200 200 0
-./philo 999999999999999999999 800 200 200
 ```
 
 ## 出力方針
 
-ログ出力には `printf` ではなく `write` を使う。
+ログは `write`（`print_write_line`）。`printf` は usage のみ。
 
-`printf` は内部バッファリングがあり、flush タイミングが不定である。
-mutex で出力を直列化していても、バッファの flush がスレッド間で混ざる可能性がある。
-また、死亡直後にプロセスが終了するケースでバッファが flush されないまま消える恐れがある。
+`printf` のバッファは flush タイミングが不定で、mutex 直列化だけでは混在・消失のリスクがある。`write` は短い行ならアトミックに近い挙動になる。
 
-`write` はシステムコール一発で出力されるため、PIPE_BUF 以下であればアトミック性が保証される。
-ログ 1 行は十分短いため、この条件を満たす。
+詳細は `docs/coding-style.md` も参照。
 
-具体的には自前の数値変換でバッファに整形し、`write(1, buf, len)` で出力する。
-print mutex との組み合わせで、ログの混在と消失の両方を防ぐ。
+## モジュール対応
 
-`printf` は引数エラー時の usage 表示のみに限定する（シングルスレッド、正常系前なので問題なし）。
+| ファイル | 責務 |
+|----------|------|
+| `philo_reserve.c` | fork 順序、予約、優先度、待ちループ |
+| `philo_meal.c` | fork 取得、食事、解放 |
+| `philo_routine.c` | thread 本体、1 人/複数、stagger |
+| `philo_state.c` | `wants_to_eat`, `last_meal_ms`, `eat_count` |
+| `monitor.c` | 死亡・全員食事完了 |
+| `print.c` | 状態ログ・死亡ログ |
+| `time.c` | 時刻・割り込み可能 sleep |
+| `table_state.c` | `finished` の読み書き |
 
-## 実装時に注意すること
+## README との役割分担
 
-philosopher の番号は 1 から `number_of_philosophers` までの 1-indexed で表示する。
-内部配列は 0-indexed で管理し、ログ出力時に `id + 1` で変換する。
+`README.md` は提出用（英語、ビルド・実行・参考資料・AI 利用）。
 
-時刻取得には `gettimeofday` を使う（subject の許可関数にこれしかない）。
-simulation 開始時のタイムスタンプとの差分をミリ秒で算出し、ログの timestamp とする。
-
-philosopher thread は `pthread_create` で生成し、simulation 終了後に `pthread_join` で全スレッドを回収する。
-monitor thread も同様に `pthread_join` で回収する。`pthread_detach` は使わない。
-join で回収することでリソースリークを防ぎ、全スレッドの終了を main で確認してから exit する。
-
-`usleep` は指定時間ぴったりに復帰する保証がない。
-死亡ログは実際の死亡から 10 ms 以内に出す必要があるため、長い `usleep` をそのまま使わず、短い間隔で終了状態や現在時刻を確認する `precise_sleep` を用意する。
-`precise_sleep` の確認間隔は 500μs〜1ms 程度とする。10ms 要件に対して十分短く、かつ CPU を過度に消費しない範囲である。
-
-`last_meal_time` は、両 fork 取得直後（`is eating` 出力前）に更新する。
-subject では、`time_to_die` は最後の食事開始、または simulation 開始からの経過時間で判定される。
-各 philosopher の `last_meal_time` はスレッド生成前に simulation 開始時のタイムスタンプで初期化する。
-スレッド生成前であればロック不要。初期化しないと、最初の食事前に monitor が誤って死亡判定する。
-
-monitor は全 philosopher を巡回し、死亡と全員の食事回数達成を確認する。
-各巡回の完了後に 1ms 以下のスリープを入れる。
-N が大きい場合（例: 200人）でも、巡回処理自体 + スリープの合計が 10ms を超えないようにする。
-priority queue などの複雑なデータ構造は使わない。
-この課題では、データ構造の工夫よりも共有状態の保護と lock 順序の方が重要である。
-
-実装は小さく動かしながら進める。
-
-1. 引数パースと config
-2. 時刻関数と sleep 関数
-3. mutex 付きログ出力
-4. 1 人ケース
-5. 2 人ケース
-6. 複数人ケース
-7. monitor による死亡判定
-8. optional eat count
-9. sanitizer と長時間テスト
-
-README は subject 上必須だが、この設計メモとは役割を分ける。
-`README.md` は英語の提出用ドキュメントとして、概要、ビルド方法、実行方法、参考資料、AI 利用について後で整理する。
+このファイルは設計判断と実装の対応表。eval 前や bonus 着手時にコードと突き合わせて更新する。
