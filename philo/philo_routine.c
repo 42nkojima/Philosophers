@@ -23,7 +23,7 @@ static void	routine_one_philo(t_philo *philo)
 	table = philo->table;
 	fork = philo->left_fork_index;
 	pthread_mutex_lock(&table->forks[fork]);
-	print_status(table, philo->id + 1, "has taken a fork");
+	print_status(table, philo->index + 1, "has taken a fork");
 	time_sleep_ms(table, WAIT_UNTIL_FINISHED_MS);
 	pthread_mutex_unlock(&table->forks[fork]);
 }
@@ -31,20 +31,20 @@ static void	routine_one_philo(t_philo *philo)
 static void	rest_phase(t_philo *philo)
 {
 	t_table	*table;
-	int		id;
+	int		philo_id;
 
 	table = philo->table;
-	id = philo->id + 1;
-	print_status(table, id, "is sleeping");
+	philo_id = philo->index + 1;
+	print_status(table, philo_id, "is sleeping");
 	time_sleep_ms(table, (unsigned int)table->cfg.time_to_sleep);
-	print_status(table, id, "is thinking");
+	print_status(table, philo_id, "is thinking");
 }
 
 static void	stagger_start(t_philo *philo)
 {
 	unsigned int	delay;
 
-	if (philo->id % 2 == 0)
+	if (philo->index % 2 == 0)
 		return ;
 	delay = (unsigned int)philo->table->cfg.time_to_eat / 2;
 	if (delay == 0)

@@ -43,12 +43,12 @@ typedef struct s_table
 
 typedef struct s_philo
 {
-	int					id;
+	int					index;
 	uint64_t			last_meal_ms;
 	int					eat_count;
 	int					left_fork_index;
 	int					right_fork_index;
-	bool				hungry;
+	bool				wants_to_eat;
 	pthread_t			thread;
 	t_table				*table;
 }						t_philo;
@@ -59,7 +59,15 @@ int						parse_config(int ac, char **av, t_config *cfg);
 /* table.c */
 int						table_init(t_table *table, const t_config *cfg);
 void					table_destroy(t_table *table);
+
+/* table_state.c */
 bool					table_is_finished(t_table *table);
+void					table_finish_locked(t_table *table);
+void					table_finish(t_table *table);
+
+/* table_forks.c */
+int						table_forks_create(t_table *table, int count);
+void					table_forks_destroy(t_table *table, int count);
 
 /* time.c */
 uint64_t				time_now_ms(void);
@@ -76,17 +84,26 @@ void					print_death_locked(t_table *table, int philo_id);
 void					print_death(t_table *table, int philo_id);
 
 /* philo_reserve.c */
-void					philo_fork_order(t_philo *philo, int *first,
-							int *second);
-bool					philo_wait_reserve(t_philo *philo, int first,
-							int second);
-void					philo_unreserve(t_table *table, int first, int second);
+void					philo_order_forks(t_philo *philo, int *first_fork,
+							int *second_fork);
+bool					philo_wait_fork_reservation(t_philo *philo,
+							int first_fork, int second_fork);
+void					philo_release_fork_reservation(t_table *table,
+							int first_fork, int second_fork);
+
+/* philo_state.c */
+void					philo_set_wants_to_eat(t_philo *philo, bool value);
+void					philo_record_meal_start(t_philo *philo);
+void					philo_increment_eat_count(t_philo *philo);
 
 /* philo_meal.c */
 bool					philo_meal_cycle(t_philo *philo);
 
 /* philo_routine.c */
 void					*philo_routine(void *arg);
+
+/* simulation.c */
+int						simulation_run(t_table *table);
 
 /* monitor.c */
 void					*monitor_routine(void *arg);
