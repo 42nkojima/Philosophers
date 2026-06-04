@@ -95,6 +95,7 @@ void					philo_release_fork_reservation(t_table *table,
 void					philo_set_wants_to_eat(t_philo *philo, bool value);
 void					philo_record_meal_start(t_philo *philo);
 void					philo_increment_eat_count(t_philo *philo);
+bool					philo_has_eaten_enough(t_philo *philo);
 
 /* philo_meal.c */
 bool					philo_meal_cycle(t_philo *philo);

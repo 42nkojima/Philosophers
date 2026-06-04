@@ -58,11 +58,11 @@ static void	routine_multi(t_philo *philo)
 
 	table = philo->table;
 	stagger_start(philo);
-	while (!table_is_finished(table))
+	while (!table_is_finished(table) && !philo_has_eaten_enough(philo))
 	{
 		if (!philo_meal_cycle(philo))
 			break ;
-		if (table_is_finished(table))
+		if (table_is_finished(table) || philo_has_eaten_enough(philo))
 			break ;
 		rest_phase(philo);
 	}
