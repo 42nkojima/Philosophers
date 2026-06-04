@@ -34,6 +34,8 @@ typedef struct s_table
 	uint64_t			start_time_ms;
 	bool				finished;
 	bool				death_printed;
+	int					meal_turn;
+	int					active_reservations;
 	pthread_mutex_t		state_mutex;
 	pthread_mutex_t		print_mutex;
 	t_philo				*philos;
@@ -48,7 +50,6 @@ typedef struct s_philo
 	int					eat_count;
 	int					left_fork_index;
 	int					right_fork_index;
-	bool				wants_to_eat;
 	pthread_t			thread;
 	t_table				*table;
 }						t_philo;
@@ -88,11 +89,10 @@ void					philo_order_forks(t_philo *philo, int *first_fork,
 							int *second_fork);
 bool					philo_wait_fork_reservation(t_philo *philo,
 							int first_fork, int second_fork);
-void					philo_release_fork_reservation(t_table *table,
+void					philo_release_fork_reservation(t_philo *philo,
 							int first_fork, int second_fork);
 
 /* philo_state.c */
-void					philo_set_wants_to_eat(t_philo *philo, bool value);
 void					philo_record_meal_start(t_philo *philo);
 void					philo_increment_eat_count(t_philo *philo);
 bool					philo_has_eaten_enough(t_philo *philo);

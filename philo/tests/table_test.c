@@ -55,9 +55,10 @@ static int	test_table_initial_fields(void)
 	if (table_init(&table, &cfg) != 0)
 		return (printf("FAIL: table_init n=3\n"), 1);
 	fail = 0;
-	if (table.finished || table.death_printed)
+	if (table.finished || table.death_printed || table.meal_turn != 0
+		|| table.active_reservations != 0)
 	{
-		printf("FAIL: flags should start false\n");
+		printf("FAIL: table state should start empty\n");
 		fail = 1;
 	}
 	if (!philo_fields_ok(&table, 0))
